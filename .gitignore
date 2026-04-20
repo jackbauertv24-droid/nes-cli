@@ -1,0 +1,21 @@
+node_modules/
+*.nes
+test_*.png
+test_*.gif
+test_*.wav
+test_*.txt
+test_*.ansi
+out*.png
+ascii_test.txt
+audio_test.wav
+gif_test.gif
+test_frame.png
+frames/
+sprites/
+test_sprites/
+tests/
+
+# Keep package files
+!package.json
+!package-lock.json
+!README.md
