@@ -42,20 +42,15 @@ class RecordCommand {
     return unit === 'ms' ? value / 1000 : value;
   }
 
-  getPalTable() {
-    return this.emulator.getPalTable();
-  }
-
   recordPNGSequence(totalFrames, options) {
     const outputDir = options.output || './frames';
     FileUtils.ensureDir(outputDir);
-    const nes = this.emulator.getNES();
 
     for (let i = 0; i < totalFrames; i++) {
       this.emulator.frame();
       const frameBuffer = this.emulator.getFrameBuffer();
       const fileName = FileUtils.generateSequenceName(outputDir, 'frame', i + 1, 'png');
-      PNGHandler.save(frameBuffer, nes, fileName);
+      PNGHandler.save(frameBuffer, fileName);
       
       if ((i + 1) % 60 === 0) {
         console.log(chalk.blue(`  ${i + 1}/${totalFrames} frames...`));
@@ -68,13 +63,12 @@ class RecordCommand {
 
   recordGIF(totalFrames, options) {
     const outputPath = options.output || 'recording.gif';
-    const palTable = this.getPalTable();
     const encoder = GIFHandler.createGIF(256, 240);
 
     for (let i = 0; i < totalFrames; i++) {
       this.emulator.frame();
       const frameBuffer = this.emulator.getFrameBuffer();
-      GIFHandler.addFrame(encoder, frameBuffer, palTable);
+      GIFHandler.addFrame(encoder, frameBuffer);
       
       if ((i + 1) % 60 === 0) {
         console.log(chalk.blue(`  ${i + 1}/${totalFrames} frames...`));
@@ -88,7 +82,6 @@ class RecordCommand {
 
   recordASCII(totalFrames, options) {
     const outputPath = options.output || 'recording.txt';
-    const palTable = this.getPalTable();
     let output = '';
     const scale = options.scale || 0.5;
 
@@ -96,7 +89,7 @@ class RecordCommand {
       this.emulator.frame();
       const frameBuffer = this.emulator.getFrameBuffer();
       output += `=== Frame ${i + 1} ===\n`;
-      output += ASCIIHandler.frameToASCII(frameBuffer, palTable, 256, 240, scale);
+      output += ASCIIHandler.frameToASCII(frameBuffer, 256, 240, scale);
       output += '\n';
       
       if ((i + 1) % 60 === 0) {
@@ -111,7 +104,6 @@ class RecordCommand {
 
   recordANSI(totalFrames, options) {
     const outputPath = options.output || 'recording.ansi';
-    const palTable = this.getPalTable();
     let output = '';
     const scale = options.scale || 0.25;
 
@@ -119,7 +111,7 @@ class RecordCommand {
       this.emulator.frame();
       const frameBuffer = this.emulator.getFrameBuffer();
       output += `=== Frame ${i + 1} ===\n`;
-      output += ASCIIHandler.frameToANSI(frameBuffer, palTable, 256, 240, scale);
+      output += ASCIIHandler.frameToANSI(frameBuffer, 256, 240, scale);
       output += '\n';
       
       if ((i + 1) % 60 === 0) {

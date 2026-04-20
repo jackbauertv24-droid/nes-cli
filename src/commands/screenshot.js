@@ -22,26 +22,23 @@ class ScreenshotCommand {
       'screenshot.png'
     );
 
-    const nes = this.emulator.getNES();
-    const palTable = this.emulator.getPalTable();
-
     try {
       if (options.format === 'ascii') {
-        ASCIIHandler.saveASCII(frameBuffer, palTable, outputPath, {
+        ASCIIHandler.saveASCII(frameBuffer, outputPath, {
           width: 256,
           height: 240,
           scale: options.scale || 0.5
         });
         console.log(chalk.green(`ASCII screenshot saved: ${outputPath}`));
       } else if (options.format === 'ansi') {
-        ASCIIHandler.saveANSI(frameBuffer, palTable, outputPath, {
+        ASCIIHandler.saveANSI(frameBuffer, outputPath, {
           width: 256,
           height: 240,
           scale: options.scale || 0.25
         });
         console.log(chalk.green(`ANSI screenshot saved: ${outputPath}`));
       } else {
-        PNGHandler.saveWithPalette(frameBuffer, palTable, outputPath);
+        PNGHandler.save(frameBuffer, outputPath);
         console.log(chalk.green(`Screenshot saved: ${outputPath}`));
       }
       

@@ -1,15 +1,11 @@
 const c = require('ansi-colors');
 
 class ASCIIHandler {
-  static getRGBColor(colorIndex, palTable) {
-    if (palTable && palTable[colorIndex]) {
-      const packed = palTable[colorIndex];
-      const r = (packed >> 16) & 0xFF;
-      const g = (packed >> 8) & 0xFF;
-      const b = packed & 0xFF;
-      return [r, g, b];
-    }
-    return [0, 0, 0];
+  static unpackRGB(packed) {
+    const r = (packed >> 16) & 0xFF;
+    const g = (packed >> 8) & 0xFF;
+    const b = packed & 0xFF;
+    return [r, g, b];
   }
 
   static getAsciiChar(brightness) {
@@ -18,7 +14,7 @@ class ASCIIHandler {
     return chars[Math.min(index, chars.length - 1)];
   }
 
-  static frameToASCII(frameBuffer, palTable, width = 256, height = 240, scale = 0.5) {
+  static frameToASCII(frameBuffer, width = 256, height = 240, scale = 0.5) {
     const outWidth = Math.floor(width * scale);
     const outHeight = Math.floor(height * scale);
     let output = '';
@@ -30,8 +26,8 @@ class ASCIIHandler {
         const srcY = Math.floor(y / scale);
         const idx = srcY * width + srcX;
         
-        const pixelIndex = frameBuffer[idx] || 0;
-        const [r, g, b] = this.getRGBColor(pixelIndex, palTable);
+        const packedColor = frameBuffer[idx] || 0;
+        const [r, g, b] = this.unpackRGB(packedColor);
         const brightness = (r + g + b) / 3;
         
         line += this.getAsciiChar(brightness);
@@ -42,7 +38,7 @@ class ASCIIHandler {
     return output;
   }
 
-  static frameToANSI(frameBuffer, palTable, width = 256, height = 240, scale = 0.25) {
+  static frameToANSI(frameBuffer, width = 256, height = 240, scale = 0.25) {
     const outWidth = Math.floor(width * scale);
     const outHeight = Math.floor(height * scale);
     let output = '';
@@ -54,8 +50,8 @@ class ASCIIHandler {
         const srcY = Math.floor(y / scale);
         const idx = srcY * width + srcX;
         
-        const pixelIndex = frameBuffer[idx] || 0;
-        const [r, g, b] = this.getRGBColor(pixelIndex, palTable);
+        const packedColor = frameBuffer[idx] || 0;
+        const [r, g, b] = this.unpackRGB(packedColor);
         
         line += c.rgb(r, g, b)('\u2588');
       }
@@ -65,16 +61,16 @@ class ASCIIHandler {
     return output;
   }
 
-  static saveASCII(frameBuffer, palTable, filePath, options = {}) {
+  static saveASCII(frameBuffer, filePath, options = {}) {
     const fs = require('fs');
-    const ascii = this.frameToASCII(frameBuffer, palTable, options.width, options.height, options.scale);
+    const ascii = this.frameToASCII(frameBuffer, options.width || 256, options.height || 240, options.scale || 0.5);
     fs.writeFileSync(filePath, ascii);
     return filePath;
   }
 
-  static saveANSI(frameBuffer, palTable, filePath, options = {}) {
+  static saveANSI(frameBuffer, filePath, options = {}) {
     const fs = require('fs');
-    const ansi = this.frameToANSI(frameBuffer, palTable, options.width, options.height, options.scale);
+    const ansi = this.frameToANSI(frameBuffer, options.width || 256, options.height || 240, options.scale || 0.25);
     fs.writeFileSync(filePath, ansi);
     return filePath;
   }
