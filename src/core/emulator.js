@@ -126,6 +126,48 @@ class Emulator {
     return sprites;
   }
 
+  getSpritePalette(paletteIndex) {
+    const baseAddress = 0x3F10 + (paletteIndex * 4);
+    const palette = [];
+    const palTable = this.nes.ppu.palTable.curTable;
+    for (let i = 0; i < 4; i++) {
+      const colorIndex = this.nes.ppu.vramMem[baseAddress + i] & 63;
+      const rgb = palTable[colorIndex] || 0;
+      palette.push([
+        (rgb >> 16) & 0xFF,
+        (rgb >> 8) & 0xFF,
+        rgb & 0xFF
+      ]);
+    }
+    return palette;
+  }
+
+  getAllSpritePalettes() {
+    return [0, 1, 2, 3].map(i => this.getSpritePalette(i));
+  }
+
+  is8x16Sprites() {
+    return this.nes.ppu.f_spriteSize === 1;
+  }
+
+  getTilePixelData(tileIndex) {
+    const tile = this.nes.ppu.ptTile[tileIndex];
+    if (!tile) return new Array(64).fill(0);
+    
+    const pixelData = new Array(64).fill(0);
+    for (let y = 0; y < 8; y++) {
+      const lowByte = tile.pix[y] || 0;
+      const highByte = tile.pix[y + 8] || 0;
+      for (let x = 0; x < 8; x++) {
+        const bit = 7 - x;
+        const lowBit = (lowByte >> bit) & 1;
+        const highBit = (highByte >> bit) & 1;
+        pixelData[y * 8 + x] = (highBit << 1) | lowBit;
+      }
+    }
+    return pixelData;
+  }
+
   getMemory(start, length) {
     const mem = [];
     for (let i = 0; i < length; i++) {

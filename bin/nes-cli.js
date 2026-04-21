@@ -129,17 +129,15 @@ program
 program
   .command('sprites')
   .description('Extract sprites from OAM and CHR ROM')
-  .option('-f, --format <format>', 'Format: png, json, oam, chr, all', 'all')
+  .option('-f, --format <format>', 'Format: chr, oam, all', 'all')
   .option('-o, --output <path>', 'Output directory', './sprites')
-  .option('-b, --bank <n>', 'CHR bank number', '0')
-  .option('--spritesheet', 'Create spritesheet for CHR tiles')
+  .option('-i, --individual', 'Also generate individual PNG files (1280 for CHR, ~64 for OAM)')
   .action((options) => {
     const cmd = new SpritesCommand(getEmulator());
     cmd.execute({
       format: options.format,
       outputDir: options.output,
-      bank: parseInt(options.bank),
-      spritesheet: options.spritesheet
+      individual: options.individual
     });
   });
 
@@ -263,7 +261,13 @@ program
           new InputCommand(currentEmulator).execute({ button: args[0] });
           break;
         case 'sprites':
-          new SpritesCommand(currentEmulator).execute({ outputDir: args[0] || './sprites' });
+          const spritesArgs = args.join(':').split(' ').filter(a => a);
+          const spritesDir = spritesArgs[0] || './sprites';
+          const spritesIndividual = spritesArgs.includes('--individual') || spritesArgs.includes('-i');
+          new SpritesCommand(currentEmulator).execute({ 
+            outputDir: spritesDir,
+            individual: spritesIndividual
+          });
           break;
         case 'audio':
           new AudioCommand(currentEmulator).execute({ duration: args[0] || '10s', output: args[1] });

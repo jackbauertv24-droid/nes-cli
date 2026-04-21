@@ -1,5 +1,8 @@
 node_modules/
 *.nes
+smb3.nes
+rom/
+quickshare_received/
 test_*.png
 test_*.gif
 test_*.wav

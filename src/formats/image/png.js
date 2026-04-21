@@ -44,9 +44,9 @@ class PNGHandler {
     
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const idx = (y * width + x) * 4;
         const pixel = spriteData[y * width + x];
         const color = palette[pixel] || [0, 0, 0];
+        const idx = (y * width + x) * 4;
         
         png.data[idx] = color[0];
         png.data[idx + 1] = color[1];
@@ -56,6 +56,26 @@ class PNGHandler {
     }
     
     return PNG.sync.write(png);
+  }
+
+  static saveSprite(pixelData, filePath, palette, width = 8, height = 8) {
+    const png = new PNG({ width, height });
+    
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const pixel = pixelData[y * width + x];
+        const [r, g, b] = palette[pixel] || [0, 0, 0];
+        const idx = (y * width + x) * 4;
+        
+        png.data[idx] = r;
+        png.data[idx + 1] = g;
+        png.data[idx + 2] = b;
+        png.data[idx + 3] = pixel === 0 ? 0 : 255;
+      }
+    }
+    
+    fs.writeFileSync(filePath, PNG.sync.write(png));
+    return filePath;
   }
 }
 
