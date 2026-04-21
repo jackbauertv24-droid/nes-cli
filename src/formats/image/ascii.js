@@ -53,7 +53,8 @@ class ASCIIHandler {
         const packedColor = frameBuffer[idx] || 0;
         const [r, g, b] = this.unpackRGB(packedColor);
         
-        line += c.rgb(r, g, b)('\u2588');
+        // Use ANSI 24-bit color escape code
+        line += `\x1b[38;2;${r};${g};${b}m\u2588\x1b[0m`;
       }
       output += line + '\n';
     }

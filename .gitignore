@@ -23,9 +23,23 @@ tests/
 !package-lock.json
 !README.md
 
-# Keep examples folder
+# Keep examples folder and all its contents
 !examples/
 !examples/*.gif
 !examples/*.wav
 !examples/*.png
+!examples/*.txt
+!examples/*.ansi
 !examples/*.md
+!examples/sprites/
+!examples/sprites/*.json
+!examples/sprites/chr/
+!examples/sprites/chr/*.png
+!examples/sprites/oam/
+!examples/sprites/oam/*.png
+!examples/sprites_gameplay/
+!examples/sprites_gameplay/*.json
+!examples/sprites_gameplay/chr/
+!examples/sprites_gameplay/chr/*.png
+!examples/sprites_gameplay/oam/
+!examples/sprites_gameplay/oam/*.png
