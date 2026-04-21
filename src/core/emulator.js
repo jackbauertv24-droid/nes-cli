@@ -7,7 +7,6 @@ class Emulator {
       onFrame: this.onFrame.bind(this),
       onAudioSample: this.onAudioSample.bind(this)
     });
-    this.nes.ppu.palTable.loadDefaultPalette();
     this.frameBuffer = null;
     this.palTable = null;
     this.audioBuffer = [];
@@ -29,6 +28,8 @@ class Emulator {
   loadROM(path) {
     const data = fs.readFileSync(path);
     this.nes.loadROM(data.toString('binary'));
+    // Fix palette after ROM loads (jsnes resets to NTSC on load)
+    this.nes.ppu.palTable.loadDefaultPalette();
     this.currentROM = path;
     this.frameCount = 0;
     this.audioBuffer = [];

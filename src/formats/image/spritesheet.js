@@ -89,24 +89,40 @@ class SpriteHandler {
 
   static extractCHRTiles(romData, bank = 0) {
     const tiles = [];
-    const chrOffset = 16 + (bank * 0x2000);
-    const hasCHR = romData.length > chrOffset + 0x2000;
+    
+    // iNES header parsing
+    const header = romData.slice(0, 16);
+    const prgSize = header[4] * 16384;
+    const chrSize = header[5] * 8192;
+    const hasTrainer = (header[6] & 0x04) !== 0;
+    const trainerSize = hasTrainer ? 512 : 0;
+    
+    // CHR-ROM offset: header + trainer + PRG-ROM
+    const chrOffset = 16 + trainerSize + prgSize + (bank * 0x2000);
+    const hasCHR = romData.length >= chrOffset + 0x2000;
+    
+    if (!hasCHR) {
+      console.warn('No CHR-ROM data found in ROM');
+      // Return empty tiles
+      for (let tile = 0; tile < 256; tile++) {
+        tiles.push({ id: tile, data: new Array(64).fill(0) });
+      }
+      return tiles;
+    }
     
     for (let tile = 0; tile < 256; tile++) {
       const tileOffset = chrOffset + (tile * 16);
       const pixelData = new Array(64).fill(0);
       
-      if (hasCHR) {
-        for (let y = 0; y < 8; y++) {
-          const lowByte = romData[tileOffset + y] || 0;
-          const highByte = romData[tileOffset + y + 8] || 0;
-          
-          for (let x = 0; x < 8; x++) {
-            const bit = 7 - x;
-            const lowBit = (lowByte >> bit) & 1;
-            const highBit = (highByte >> bit) & 1;
-            pixelData[y * 8 + x] = (highBit << 1) | lowBit;
-          }
+      for (let y = 0; y < 8; y++) {
+        const lowByte = romData[tileOffset + y] || 0;
+        const highByte = romData[tileOffset + y + 8] || 0;
+        
+        for (let x = 0; x < 8; x++) {
+          const bit = 7 - x;
+          const lowBit = (lowByte >> bit) & 1;
+          const highBit = (highByte >> bit) & 1;
+          pixelData[y * 8 + x] = (highBit << 1) | lowBit;
         }
       }
       
