@@ -13,6 +13,8 @@ class Emulator {
     this.running = false;
     this.frameCount = 0;
     this.currentROM = null;
+    this.romData = null;
+    this.chrOffset = 0;
   }
 
   onFrame(frameBuffer) {
@@ -27,6 +29,15 @@ class Emulator {
 
   loadROM(path) {
     const data = fs.readFileSync(path);
+    this.romData = data;
+    
+    // Calculate CHR offset from iNES header
+    const header = data.slice(0, 16);
+    const prgSize = header[4] * 16384;
+    const hasTrainer = (header[6] & 0x04) !== 0;
+    const trainerSize = hasTrainer ? 512 : 0;
+    this.chrOffset = 16 + trainerSize + prgSize;
+    
     this.nes.loadROM(data.toString('binary'));
     // Fix palette after ROM loads (jsnes resets to NTSC on load)
     this.nes.ppu.palTable.loadDefaultPalette();
@@ -157,13 +168,22 @@ class Emulator {
   }
 
   getTilePixelData(tileIndex) {
-    const tile = this.nes.ppu.ptTile[tileIndex];
-    if (!tile) return new Array(64).fill(0);
+    // Read directly from CHR ROM (jsnes ptTile.pix is unreliable)
+    if (!this.romData || this.chrOffset === null) {
+      return new Array(64).fill(0);
+    }
     
+    const tileOffset = this.chrOffset + (tileIndex * 16);
     const pixelData = new Array(64).fill(0);
+    
+    if (tileOffset + 16 > this.romData.length) {
+      return pixelData;
+    }
+    
     for (let y = 0; y < 8; y++) {
-      const lowByte = tile.pix[y] || 0;
-      const highByte = tile.pix[y + 8] || 0;
+      const lowByte = this.romData[tileOffset + y];
+      const highByte = this.romData[tileOffset + y + 8];
+      
       for (let x = 0; x < 8; x++) {
         const bit = 7 - x;
         const lowBit = (lowByte >> bit) & 1;
@@ -171,6 +191,7 @@ class Emulator {
         pixelData[y * 8 + x] = (highBit << 1) | lowBit;
       }
     }
+    
     return pixelData;
   }
 
