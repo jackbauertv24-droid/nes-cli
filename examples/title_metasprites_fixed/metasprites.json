@@ -6,14 +6,14 @@
     "height": 48,
     "spriteCount": 6,
     "tiles": [
-      177,
-      225,
-      227,
-      229,
+      233,
       231,
-      233
+      229,
+      227,
+      177,
+      225
     ],
-    "occurrences": 94
+    "occurrences": 40
   },
   {
     "id": 1,
@@ -22,14 +22,14 @@
     "height": 48,
     "spriteCount": 6,
     "tiles": [
-      177,
-      225,
+      239,
+      237,
       229,
       235,
-      237,
-      239
+      177,
+      225
     ],
-    "occurrences": 91
+    "occurrences": 34
   },
   {
     "id": 2,
@@ -38,13 +38,13 @@
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
-      227,
-      229,
+      233,
       231,
-      233
+      229,
+      227,
+      177,
+      225,
+      223
     ],
     "occurrences": 4
   },
@@ -55,13 +55,13 @@
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
-      227,
-      229,
+      233,
       231,
-      233
+      229,
+      227,
+      177,
+      225,
+      223
     ],
     "occurrences": 4
   },
@@ -72,55 +72,61 @@
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
+      239,
+      237,
       229,
       235,
-      237,
-      239
+      177,
+      225,
+      223
     ],
     "occurrences": 4
   },
   {
     "id": 5,
     "filename": "metasprite_005.png",
-    "width": 30,
-    "height": 51,
-    "spriteCount": 7,
-    "tiles": [
-      177,
-      223,
-      225,
-      227,
-      229,
-      231,
-      233
-    ],
-    "occurrences": 3
-  },
-  {
-    "id": 6,
-    "filename": "metasprite_006.png",
     "width": 65,
     "height": 51,
     "spriteCount": 13,
     "tiles": [
-      177,
-      177,
-      223,
-      225,
-      225,
-      229,
-      229,
-      235,
-      235,
-      237,
-      237,
       239,
-      239
+      237,
+      229,
+      235,
+      177,
+      225,
+      223,
+      235,
+      177,
+      225,
+      239,
+      237,
+      229
     ],
-    "occurrences": 3
+    "occurrences": 4
+  },
+  {
+    "id": 6,
+    "filename": "metasprite_006.png",
+    "width": 66,
+    "height": 51,
+    "spriteCount": 13,
+    "tiles": [
+      233,
+      231,
+      229,
+      227,
+      177,
+      225,
+      223,
+      227,
+      177,
+      225,
+      233,
+      231,
+      229
+    ],
+    "occurrences": 4
   },
   {
     "id": 7,
@@ -129,116 +135,110 @@
     "height": 51,
     "spriteCount": 13,
     "tiles": [
-      177,
-      177,
-      223,
-      225,
-      225,
-      227,
-      227,
-      229,
-      229,
-      231,
-      231,
       233,
-      233
+      231,
+      229,
+      227,
+      177,
+      225,
+      223,
+      227,
+      177,
+      225,
+      233,
+      231,
+      229
     ],
-    "occurrences": 3
+    "occurrences": 4
   },
   {
     "id": 8,
     "filename": "metasprite_008.png",
-    "width": 27,
+    "width": 30,
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
+      233,
+      231,
       229,
-      235,
-      237,
-      239
+      227,
+      177,
+      225,
+      223
     ],
-    "occurrences": 2
+    "occurrences": 3
   },
   {
     "id": 9,
     "filename": "metasprite_009.png",
-    "width": 31,
+    "width": 66,
     "height": 51,
-    "spriteCount": 7,
+    "spriteCount": 13,
     "tiles": [
-      177,
-      223,
-      225,
-      227,
+      239,
+      237,
       229,
-      231,
-      233
+      235,
+      177,
+      225,
+      223,
+      235,
+      177,
+      225,
+      239,
+      237,
+      229
     ],
-    "occurrences": 2
+    "occurrences": 3
   },
   {
     "id": 10,
     "filename": "metasprite_010.png",
-    "width": 65,
+    "width": 27,
     "height": 51,
-    "spriteCount": 13,
+    "spriteCount": 7,
     "tiles": [
-      177,
-      177,
-      223,
-      225,
-      225,
-      229,
-      229,
-      235,
-      235,
-      237,
-      237,
       239,
-      239
+      237,
+      229,
+      235,
+      177,
+      225,
+      223
     ],
     "occurrences": 2
   },
   {
     "id": 11,
     "filename": "metasprite_011.png",
-    "width": 65,
+    "width": 31,
     "height": 51,
-    "spriteCount": 13,
+    "spriteCount": 7,
     "tiles": [
-      177,
-      177,
-      223,
-      225,
-      225,
-      227,
-      227,
-      229,
-      229,
-      231,
-      231,
       233,
-      233
+      231,
+      229,
+      227,
+      177,
+      225,
+      223
     ],
     "occurrences": 2
   },
   {
     "id": 12,
     "filename": "metasprite_012.png",
-    "width": 32,
+    "width": 33,
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
+      239,
+      237,
       229,
       235,
-      237,
-      239
+      177,
+      225,
+      223
     ],
     "occurrences": 2
   },
@@ -249,115 +249,115 @@
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
+      239,
+      237,
       229,
       235,
-      237,
-      239
+      177,
+      225,
+      223
     ],
     "occurrences": 2
   },
   {
     "id": 14,
     "filename": "metasprite_014.png",
-    "width": 29,
+    "width": 27,
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
-      227,
-      229,
+      233,
       231,
-      233
+      229,
+      227,
+      177,
+      225,
+      223
     ],
     "occurrences": 2
   },
   {
     "id": 15,
     "filename": "metasprite_015.png",
-    "width": 28,
+    "width": 25,
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
-      227,
+      239,
+      237,
       229,
-      231,
-      233
+      235,
+      177,
+      225,
+      223
     ],
     "occurrences": 2
   },
   {
     "id": 16,
     "filename": "metasprite_016.png",
-    "width": 27,
+    "width": 24,
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
-      227,
+      239,
+      237,
       229,
-      231,
-      233
+      235,
+      177,
+      225,
+      223
     ],
     "occurrences": 2
   },
   {
     "id": 17,
     "filename": "metasprite_017.png",
-    "width": 25,
+    "width": 23,
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
+      239,
+      237,
       229,
       235,
-      237,
-      239
+      177,
+      225,
+      223
     ],
     "occurrences": 2
   },
   {
     "id": 18,
     "filename": "metasprite_018.png",
-    "width": 24,
+    "width": 21,
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
+      233,
+      231,
       229,
-      235,
-      237,
-      239
+      227,
+      177,
+      225,
+      223
     ],
     "occurrences": 2
   },
   {
     "id": 19,
     "filename": "metasprite_019.png",
-    "width": 23,
+    "width": 20,
     "height": 51,
     "spriteCount": 7,
     "tiles": [
-      177,
-      223,
-      225,
+      233,
+      231,
       229,
-      235,
-      237,
-      239
+      227,
+      177,
+      225,
+      223
     ],
     "occurrences": 2
   }

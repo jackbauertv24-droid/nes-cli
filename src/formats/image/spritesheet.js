@@ -11,10 +11,12 @@ class SpriteHandler {
     
     for (let i = 0; i < 64; i++) {
       const offset = i * 4;
-      const y = oam[offset];
+      const oamY = oam[offset];
+      const screenY = oamY < 240 ? oamY + 1 : oamY;
       sprites.push({
         id: i,
-        y: y,
+        y: oamY,
+        screenY: screenY,
         tile: oam[offset + 1],
         attributes: oam[offset + 2],
         x: oam[offset + 3],
@@ -22,7 +24,7 @@ class SpriteHandler {
         priority: (oam[offset + 2] & 0x20) >> 5,
         flipHorizontal: (oam[offset + 2] & 0x40) >> 6,
         flipVertical: (oam[offset + 2] & 0x80) >> 7,
-        visible: y < 240
+        visible: oamY < 240
       });
     }
     

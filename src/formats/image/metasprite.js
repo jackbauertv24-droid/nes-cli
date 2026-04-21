@@ -20,7 +20,7 @@ class MetaspriteAnalyzer {
       sprites: visibleSprites.map(s => ({
         id: s.id,
         x: s.x,
-        y: s.y,
+        y: s.screenY || s.y + 1,
         tile: s.tile,
         palette: s.palette,
         flipH: s.flipHorizontal,
@@ -170,22 +170,21 @@ class MetaspriteAnalyzer {
         if (cluster.length < minSprites) continue;
         
         const bounds = this.getClusterBounds(cluster);
-        const sizeKey = `${bounds.width}x${bounds.height}`;
-        const tileKey = cluster.map(s => s.tile).sort((a, b) => a - b).join(',');
-        const metaKey = `${sizeKey}:${tileKey}`;
+        const configKey = this.getSpriteConfigurationKey(cluster, bounds);
         
-        if (!metaspriteCandidates.has(metaKey)) {
-          metaspriteCandidates.set(metaKey, {
-            key: metaKey,
+        if (!metaspriteCandidates.has(configKey)) {
+          metaspriteCandidates.set(configKey, {
+            key: configKey,
             width: bounds.width,
             height: bounds.height,
-            tiles: cluster.map(s => s.tile),
+            tiles: cluster.map(s => s.tile).sort((a, b) => a - b),
             occurrences: [],
-            firstFrame: i
+            firstFrame: i,
+            spriteConfig: this.getSpriteConfiguration(cluster, bounds)
           });
         }
         
-        const candidate = metaspriteCandidates.get(metaKey);
+        const candidate = metaspriteCandidates.get(configKey);
         candidate.occurrences.push({
           frame: i,
           cluster: cluster,
@@ -201,6 +200,23 @@ class MetaspriteAnalyzer {
     console.log(`Found ${metasprites.length} metasprite candidates`);
     
     return metasprites;
+  }
+
+  getSpriteConfiguration(cluster, bounds) {
+    return cluster.map(s => ({
+      tile: s.tile,
+      relX: s.x - bounds.minX,
+      relY: s.y - bounds.minY,
+      flipH: s.flipH,
+      flipV: s.flipV
+    })).sort((a, b) => a.relY * 100 + a.relX - b.relY * 100 - b.relX);
+  }
+
+  getSpriteConfigurationKey(cluster, bounds) {
+    const config = this.getSpriteConfiguration(cluster, bounds);
+    const sizeKey = `${bounds.width}x${bounds.height}`;
+    const posKey = config.map(c => `${c.tile}@${c.relX},${c.relY}`).join(';');
+    return `${sizeKey}:${posKey}`;
   }
 
   trackAnimations(frameCount = 120, maxGap = 16, minSprites = 2) {
