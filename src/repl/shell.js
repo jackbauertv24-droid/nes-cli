@@ -94,8 +94,9 @@ class REPLShell {
         case 'sprites':
           if (!this.emulator) { console.log(chalk.red('Load a ROM first')); return; }
           new SpritesCommand(this.emulator).execute({
-            format: args[0] || 'png',
-            outputDir: args[1] || './sprites'
+            format: args.find(a => ['chr', 'oam', 'metasprite', 'animation', 'all'].includes(a)) || 'all',
+            outputDir: args.find(a => !['chr', 'oam', 'metasprite', 'animation', 'all'].includes(a)) || './sprites',
+            frames: parseInt(args.find(a => a.startsWith('frames='))?.split('=')[1]) || 60
           });
           break;
         case 'audio':
@@ -148,7 +149,7 @@ class REPLShell {
     console.log('  screenshot [file] [format]  Capture screenshot (png, ascii, ansi)');
     console.log('  record [format] [duration]  Record screen (png-sequence, gif, ascii, ansi)');
     console.log('  input <button>             Press button (A, B, SELECT, START, UP, DOWN, LEFT, RIGHT)');
-    console.log('  sprites [format] [dir]      Extract sprites (png, json, all)');
+    console.log('  sprites [format] [dir]      Extract sprites (chr, oam, metasprite, animation, all)');
     console.log('  audio [format] [duration]   Record audio (wav, pcm, json)');
     console.log('  save [slot] [file]          Save state');
     console.log('  load-state [slot] [file]    Load state');

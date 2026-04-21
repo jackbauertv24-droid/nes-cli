@@ -40,6 +40,11 @@ class Emulator {
     this.nes.frame();
   }
 
+  stepFrame() {
+    this.nes.frame();
+    return this.frameCount;
+  }
+
   run(frames = 1) {
     for (let i = 0; i < frames; i++) {
       this.nes.frame();

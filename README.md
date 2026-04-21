@@ -7,7 +7,8 @@ A headless NES emulator for the command line with screen recording, sprite extra
 - **Pure JavaScript** - No native dependencies, runs on any Node.js environment
 - **Headless Mode** - Run entirely in-memory without display
 - **Screen Recording** - Record gameplay as PNG sequences, GIF, ASCII, or ANSI art
-- **Sprite Extraction** - Extract OAM sprites and CHR ROM tiles as PNG/JSON
+- **Sprite Extraction** - Extract OAM sprites, CHR ROM tiles, and composite metasprites
+- **Metasprite Analysis** - Detect composite characters (Mario, enemies) from gameplay
 - **Audio Capture** - Record gameplay audio as WAV files
 - **Save States** - Save and load emulator states
 - **Interactive REPL** - Control emulator interactively
@@ -83,15 +84,49 @@ node bin/nes-cli.js input --sequence "U,U,R,A,START" --delay 100
 
 #### Sprite Extraction
 ```bash
-# Extract all sprites
+# Extract all sprites (CHR + OAM)
 node bin/nes-cli.js sprites --format all --output ./sprites/
 
-# OAM only
-node bin/nes-cli.js sprites --format oam --output oam.json
+# CHR ROM tiles (256 tiles from ROM)
+node bin/nes-cli.js sprites --format chr --output ./sprites/chr
 
-# CHR tiles as spritesheet
-node bin/nes-cli.js sprites --format chr --spritesheet --output chr.png
+# OAM sprites (currently visible on screen)
+node bin/nes-cli.js sprites --format oam --output ./sprites/oam
+
+# Metasprite extraction (composite characters from gameplay)
+node bin/nes-cli.js sprites --format metasprite --output ./metasprites --frames 120
+
+# Animation tracking (sprite sequences over time)
+node bin/nes-cli.js sprites --format animation --output ./animations --frames 240
+
+# With individual PNG files
+node bin/nes-cli.js sprites --format chr --output ./sprites --individual
+
+# Adjust clustering parameters
+node bin/nes-cli.js sprites --format metasprite --frames 180 --max-gap 16 --min-sprites 2
 ```
+
+**Sprite Formats:**
+- `chr` - CHR ROM tiles (256 tiles, 8x8 each) - raw sprite data from ROM
+- `oam` - OAM sprites - currently visible sprites on screen at runtime
+- `metasprite` - Composite sprites - multiple tiles forming a character (Mario, enemies)
+- `animation` - Animation sequences - sprite frames tracked over time
+
+**Metasprite Analysis:**
+Metasprites are composite sprites made of multiple 8x8 tiles that form a complete character (like Mario, Goombas, etc). The analyzer clusters nearby sprites and extracts them as single images.
+
+```bash
+# Track Mario during gameplay
+node bin/nes-cli.js load smb3.nes
+node bin/nes-cli.js run 300
+node bin/nes-cli.js input START
+node bin/nes-cli.js run 180
+node bin/nes-cli.js sprites --format metasprite --frames 120 --output ./mario_sprites
+```
+
+Output includes:
+- `metasprite_XXX.png` - Composite sprite images
+- `metasprites.json` - Metadata with dimensions, tile IDs, occurrence counts
 
 #### Audio Recording
 ```bash
@@ -176,7 +211,8 @@ nes-cli/
 │   │   ├── image/
 │   │   │   ├── png.js
 │   │   │   ├── ascii.js
-│   │   │   └── spritesheet.js
+│   │   │   ├── spritesheet.js
+│   │   │   └── metasprite.js    # Metasprite analysis
 │   │   ├── video/
 │   │   │   └── gif.js
 │   │   ├── audio/

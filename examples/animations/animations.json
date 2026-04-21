@@ -1,0 +1,114 @@
+[
+  {
+    "id": 0,
+    "positionKey": "7_7",
+    "frameCount": 4,
+    "frames": [
+      "frame_00.png",
+      "frame_01.png",
+      "frame_02.png",
+      "frame_03.png"
+    ],
+    "spritesheet": "spritesheet.png"
+  },
+  {
+    "id": 1,
+    "positionKey": "8_9",
+    "frameCount": 4,
+    "frames": [
+      "frame_00.png",
+      "frame_01.png",
+      "frame_02.png",
+      "frame_03.png"
+    ],
+    "spritesheet": "spritesheet.png"
+  },
+  {
+    "id": 2,
+    "positionKey": "15_10",
+    "frameCount": 3,
+    "frames": [
+      "frame_00.png",
+      "frame_01.png",
+      "frame_02.png"
+    ],
+    "spritesheet": "spritesheet.png"
+  },
+  {
+    "id": 3,
+    "positionKey": "1_10",
+    "frameCount": 3,
+    "frames": [
+      "frame_00.png",
+      "frame_01.png",
+      "frame_02.png"
+    ],
+    "spritesheet": "spritesheet.png"
+  },
+  {
+    "id": 4,
+    "positionKey": "14_10",
+    "frameCount": 3,
+    "frames": [
+      "frame_00.png",
+      "frame_01.png",
+      "frame_02.png"
+    ],
+    "spritesheet": "spritesheet.png"
+  },
+  {
+    "id": 5,
+    "positionKey": "2_10",
+    "frameCount": 3,
+    "frames": [
+      "frame_00.png",
+      "frame_01.png",
+      "frame_02.png"
+    ],
+    "spritesheet": "spritesheet.png"
+  },
+  {
+    "id": 6,
+    "positionKey": "13_10",
+    "frameCount": 3,
+    "frames": [
+      "frame_00.png",
+      "frame_01.png",
+      "frame_02.png"
+    ],
+    "spritesheet": "spritesheet.png"
+  },
+  {
+    "id": 7,
+    "positionKey": "3_10",
+    "frameCount": 3,
+    "frames": [
+      "frame_00.png",
+      "frame_01.png",
+      "frame_02.png"
+    ],
+    "spritesheet": "spritesheet.png"
+  },
+  {
+    "id": 8,
+    "positionKey": "12_10",
+    "frameCount": 3,
+    "frames": [
+      "frame_00.png",
+      "frame_01.png",
+      "frame_02.png"
+    ],
+    "spritesheet": "spritesheet.png"
+  },
+  {
+    "id": 9,
+    "positionKey": "10_10",
+    "frameCount": 3,
+    "frames": [
+      "frame_00.png",
+      "frame_01.png",
+      "frame_02.png"
+    ],
+    "spritesheet": "spritesheet.png"
+  }
+]

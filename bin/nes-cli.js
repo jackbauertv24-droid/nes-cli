@@ -129,15 +129,21 @@ program
 program
   .command('sprites')
   .description('Extract sprites from OAM and CHR ROM')
-  .option('-f, --format <format>', 'Format: chr, oam, all', 'all')
+  .option('-f, --format <format>', 'Format: chr, oam, metasprite, animation, all', 'all')
   .option('-o, --output <path>', 'Output directory', './sprites')
   .option('-i, --individual', 'Also generate individual PNG files (1280 for CHR, ~64 for OAM)')
+  .option('--frames <n>', 'Frames to analyze for metasprite/animation (default: 60)', '60')
+  .option('--max-gap <n>', 'Max gap between sprites to cluster (default: 16)', '16')
+  .option('--min-sprites <n>', 'Min sprites per metasprite (default: 2)', '2')
   .action((options) => {
     const cmd = new SpritesCommand(getEmulator());
     cmd.execute({
       format: options.format,
       outputDir: options.output,
-      individual: options.individual
+      individual: options.individual,
+      frames: parseInt(options.frames),
+      maxGap: parseInt(options.maxGap),
+      minSprites: parseInt(options.minSprites)
     });
   });
 
@@ -263,10 +269,14 @@ program
         case 'sprites':
           const spritesArgs = args.join(':').split(' ').filter(a => a);
           const spritesDir = spritesArgs[0] || './sprites';
+          const spritesFormat = spritesArgs.find(a => ['chr', 'oam', 'metasprite', 'animation'].includes(a)) || 'all';
           const spritesIndividual = spritesArgs.includes('--individual') || spritesArgs.includes('-i');
+          const spritesFrames = parseInt(spritesArgs.find(a => a.startsWith('frames='))?.split('=')[1]) || 60;
           new SpritesCommand(currentEmulator).execute({ 
             outputDir: spritesDir,
-            individual: spritesIndividual
+            format: spritesFormat,
+            individual: spritesIndividual,
+            frames: spritesFrames
           });
           break;
         case 'audio':
