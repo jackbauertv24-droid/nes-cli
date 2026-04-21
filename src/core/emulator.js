@@ -7,6 +7,7 @@ class Emulator {
       onFrame: this.onFrame.bind(this),
       onAudioSample: this.onAudioSample.bind(this)
     });
+    this.nes.ppu.palTable.loadDefaultPalette();
     this.frameBuffer = null;
     this.palTable = null;
     this.audioBuffer = [];
