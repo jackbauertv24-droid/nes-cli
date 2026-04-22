@@ -84,49 +84,22 @@ node bin/nes-cli.js input --sequence "U,U,R,A,START" --delay 100
 
 #### Sprite Extraction
 ```bash
-# Extract all sprites (CHR + OAM)
-node bin/nes-cli.js sprites --format all --output ./sprites/
-
 # CHR ROM tiles (256 tiles from ROM)
 node bin/nes-cli.js sprites --format chr --output ./sprites/chr
 
 # OAM sprites (currently visible on screen)
 node bin/nes-cli.js sprites --format oam --output ./sprites/oam
-
-# Metasprite extraction (composite characters from gameplay)
-node bin/nes-cli.js sprites --format metasprite --output ./metasprites --frames 120
-
-# Animation tracking (sprite sequences over time)
-node bin/nes-cli.js sprites --format animation --output ./animations --frames 240
-
-# With individual PNG files
-node bin/nes-cli.js sprites --format chr --output ./sprites --individual
-
-# Adjust clustering parameters
-node bin/nes-cli.js sprites --format metasprite --frames 180 --max-gap 16 --min-sprites 2
 ```
 
 **Sprite Formats:**
 - `chr` - CHR ROM tiles (256 tiles, 8x8 each) - raw sprite data from ROM
 - `oam` - OAM sprites - currently visible sprites on screen at runtime
-- `metasprite` - Composite sprites - multiple tiles forming a character (Mario, enemies)
-- `animation` - Animation sequences - sprite frames tracked over time
 
-**Metasprite Analysis:**
-Metasprites are composite sprites made of multiple 8x8 tiles that form a complete character (like Mario, Goombas, etc). The analyzer clusters nearby sprites and extracts them as single images.
-
-```bash
-# Track Mario during gameplay
-node bin/nes-cli.js load smb3.nes
-node bin/nes-cli.js run 300
-node bin/nes-cli.js input START
-node bin/nes-cli.js run 180
-node bin/nes-cli.js sprites --format metasprite --frames 120 --output ./mario_sprites
-```
-
-Output includes:
-- `metasprite_XXX.png` - Composite sprite images
-- `metasprites.json` - Metadata with dimensions, tile IDs, occurrence counts
+**Important Limitations:**
+- **MMC3 mapper games** (like SMB3) use CHR bank switching, meaning tile numbers change meaning during gameplay
+- **Metasprite extraction is experimental** - works best when characters are fully visible in center of screen
+- Characters entering from screen edges will be partially cut off
+- NES palette design has both transparent (palette[0]) and outline (palette[3]) as black RGB(0,0,0), so sprites may appear on black backgrounds
 
 #### Audio Recording
 ```bash
