@@ -12,7 +12,8 @@
       47
     ],
     "occurrences": 163,
-    "firstFrame": 104
+    "firstFrame": 104,
+    "palette": 0
   },
   {
     "id": 1,
@@ -27,7 +28,8 @@
       71
     ],
     "occurrences": 80,
-    "firstFrame": 143
+    "firstFrame": 143,
+    "palette": 1
   },
   {
     "id": 2,
@@ -42,7 +44,8 @@
       41
     ],
     "occurrences": 64,
-    "firstFrame": 137
+    "firstFrame": 137,
+    "palette": 0
   },
   {
     "id": 3,
@@ -57,7 +60,8 @@
       97
     ],
     "occurrences": 56,
-    "firstFrame": 215
+    "firstFrame": 215,
+    "palette": 1
   },
   {
     "id": 4,
@@ -72,7 +76,8 @@
       111
     ],
     "occurrences": 53,
-    "firstFrame": 104
+    "firstFrame": 104,
+    "palette": 1
   },
   {
     "id": 5,
@@ -87,7 +92,8 @@
       105
     ],
     "occurrences": 46,
-    "firstFrame": 137
+    "firstFrame": 137,
+    "palette": 1
   },
   {
     "id": 6,
@@ -102,7 +108,8 @@
       7
     ],
     "occurrences": 32,
-    "firstFrame": 143
+    "firstFrame": 143,
+    "palette": 0
   },
   {
     "id": 7,
@@ -117,7 +124,8 @@
       55
     ],
     "occurrences": 28,
-    "firstFrame": 273
+    "firstFrame": 273,
+    "palette": 0
   },
   {
     "id": 8,
@@ -130,7 +138,8 @@
       243
     ],
     "occurrences": 15,
-    "firstFrame": 385
+    "firstFrame": 385,
+    "palette": 0
   },
   {
     "id": 9,
@@ -143,7 +152,8 @@
       249
     ],
     "occurrences": 14,
-    "firstFrame": 388
+    "firstFrame": 388,
+    "palette": 3
   },
   {
     "id": 10,
@@ -156,7 +166,8 @@
       245
     ],
     "occurrences": 11,
-    "firstFrame": 391
+    "firstFrame": 391,
+    "palette": 0
   },
   {
     "id": 11,
@@ -169,7 +180,8 @@
       253
     ],
     "occurrences": 5,
-    "firstFrame": 397
+    "firstFrame": 397,
+    "palette": 2
   },
   {
     "id": 12,
@@ -182,7 +194,8 @@
       71
     ],
     "occurrences": 4,
-    "firstFrame": 353
+    "firstFrame": 353,
+    "palette": 1
   },
   {
     "id": 13,
@@ -195,7 +208,8 @@
       105
     ],
     "occurrences": 2,
-    "firstFrame": 351
+    "firstFrame": 351,
+    "palette": 1
   },
   {
     "id": 14,
@@ -208,6 +222,7 @@
       243
     ],
     "occurrences": 2,
-    "firstFrame": 400
+    "firstFrame": 400,
+    "palette": 0
   }
 ]

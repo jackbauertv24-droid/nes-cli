@@ -195,6 +195,8 @@ program
   .option('--palettes <list>', 'Comma-separated sprite palettes to consider (0-3)')
   .option('--max-size <n>', 'Reject clusters larger than this many pixels square', '64')
   .option('--max-sprites <n>', 'Reject clusters of more than this many sprites', '16')
+  .option('--by-palette', 'Also write one sheet per sprite palette, usually one per character')
+  .option('--sheet-columns <n>', 'Poses per row in a sheet', '8')
   .action((options) => {
     withSession((emulator) =>
       new SpritesCommand(emulator).execute({
@@ -212,7 +214,9 @@ program
           : undefined,
         maxWidth: parseInt(options.maxSize, 10),
         maxHeight: parseInt(options.maxSize, 10),
-        maxSprites: parseInt(options.maxSprites, 10)
+        maxSprites: parseInt(options.maxSprites, 10),
+        byPalette: options.byPalette,
+        sheetColumns: parseInt(options.sheetColumns, 10)
       })
     );
   });

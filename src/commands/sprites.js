@@ -124,7 +124,49 @@ class SpritesCommand {
 
     console.log(chalk.green(`Metasprites: ${outputDir}`));
     console.log(chalk.gray(`  ${best.length} of ${found.length} candidates written`));
+
+    this.writeSheets(best, outputDir, options);
     return outputDir;
+  }
+
+  /**
+   * Write the tiled sheets that go alongside the individual pose PNGs.
+   *
+   * By default one sheet holds every pose found. With byPalette, each sprite
+   * palette gets its own sheet, which in practice means one per character:
+   * games almost always give each character its own palette, so this is what
+   * separates Mario's poses from Luigi's.
+   */
+  writeSheets(metasprites, outputDir, options = {}) {
+    const columns = options.sheetColumns || 8;
+    const overall = MetaspriteAnalyzer.saveSheet(
+      metasprites,
+      path.join(outputDir, 'sheet.png'),
+      columns
+    );
+
+    if (overall) {
+      console.log(
+        chalk.gray(`  sheet.png: ${overall.columns}x${overall.rows} cells of ${overall.cellWidth}x${overall.cellHeight}`)
+      );
+    }
+
+    if (!options.byPalette) {
+      return;
+    }
+
+    const palettes = [...new Set(metasprites.map((m) => m.palette))].sort();
+    for (const palette of palettes) {
+      const group = metasprites.filter((m) => m.palette === palette);
+      const sheet = MetaspriteAnalyzer.saveSheet(
+        group,
+        path.join(outputDir, `sheet-palette${palette}.png`),
+        columns
+      );
+      if (sheet) {
+        console.log(chalk.gray(`  sheet-palette${palette}.png: ${group.length} poses`));
+      }
+    }
   }
 }
 

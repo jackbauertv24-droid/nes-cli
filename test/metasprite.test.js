@@ -141,3 +141,94 @@ describe('degenerate clusters', () => {
     expect(found[0].spriteCount).toBeLessThanOrEqual(analyzer.maxSprites);
   });
 });
+
+describe('sprite sheets', () => {
+  const { PNG } = require('pngjs');
+
+  function fakePose(width, height, colour) {
+    const png = new PNG({ width, height });
+    png.data.fill(0);
+    for (let i = 0; i < width * height; i++) {
+      png.data[i * 4] = colour;
+      png.data[i * 4 + 3] = 255;
+    }
+    return { width, height, png, palette: 0 };
+  }
+
+  test('poses are tiled into uniform cells on a transparent background', () => {
+    const dir = tmpdir('sheet');
+    const file = path.join(dir, 'sheet.png');
+
+    const result = MetaspriteAnalyzer.saveSheet(
+      [fakePose(16, 32, 10), fakePose(16, 32, 20), fakePose(8, 16, 30)],
+      file,
+      8
+    );
+
+    expect(result).toMatchObject({ cellWidth: 16, cellHeight: 32, columns: 3, rows: 1 });
+
+    const png = PNG.sync.read(fs.readFileSync(file));
+    expect(png.width).toBe(48);
+    expect(png.height).toBe(32);
+    // The gap left by the third, smaller pose stays transparent: a sheet is an
+    // asset, not a preview, so it gets no matte.
+    expect(png.data[(0 * png.width + 34) * 4 + 3]).toBe(0);
+  });
+
+  test('a short pose sits on the bottom of its cell so feet line up', () => {
+    const dir = tmpdir('sheet-align');
+    const file = path.join(dir, 'sheet.png');
+
+    MetaspriteAnalyzer.saveSheet([fakePose(16, 32, 10), fakePose(16, 16, 20)], file, 8);
+
+    const png = PNG.sync.read(fs.readFileSync(file));
+    const alphaAt = (x, y) => png.data[(y * png.width + x) * 4 + 3];
+
+    // Second cell starts at x=16. Its top half is empty, its bottom half drawn.
+    expect(alphaAt(20, 4)).toBe(0);
+    expect(alphaAt(20, 31)).toBe(255);
+    // The full-height pose reaches the top of its own cell.
+    expect(alphaAt(4, 0)).toBe(255);
+  });
+
+  test('wrapping onto several rows respects the column count', () => {
+    const dir = tmpdir('sheet-wrap');
+    const file = path.join(dir, 'sheet.png');
+    const poses = Array.from({ length: 5 }, () => fakePose(8, 8, 40));
+
+    const result = MetaspriteAnalyzer.saveSheet(poses, file, 2);
+    expect(result).toMatchObject({ columns: 2, rows: 3 });
+
+    const png = PNG.sync.read(fs.readFileSync(file));
+    expect(png.width).toBe(16);
+    expect(png.height).toBe(24);
+  });
+
+  test('an empty set writes nothing rather than a zero-sized PNG', () => {
+    const dir = tmpdir('sheet-empty');
+    expect(MetaspriteAnalyzer.saveSheet([], path.join(dir, 'sheet.png'))).toBeNull();
+  });
+
+  test('each metasprite records the palette it was drawn with', () => {
+    const emulator = boot('metasprite.nes', 30);
+    const outDir = tmpdir('sheet-palette');
+
+    new SpritesCommand(emulator).execute({
+      format: 'metasprite',
+      outputDir: outDir,
+      frames: 10,
+      byPalette: true
+    });
+
+    const meta = JSON.parse(
+      fs.readFileSync(path.join(outDir, 'metasprites', 'metasprites.json'), 'utf8')
+    );
+    // The fixture's character is drawn with sprite palette 1.
+    expect(meta[0].palette).toBe(1);
+
+    expect(fs.existsSync(path.join(outDir, 'metasprites', 'sheet.png'))).toBe(true);
+    expect(fs.existsSync(path.join(outDir, 'metasprites', 'sheet-palette1.png'))).toBe(true);
+    // Nothing on palette 0 was found, so no sheet for it.
+    expect(fs.existsSync(path.join(outDir, 'metasprites', 'sheet-palette0.png'))).toBe(false);
+  });
+});

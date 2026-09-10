@@ -10,7 +10,8 @@
       219
     ],
     "occurrences": 105,
-    "firstFrame": 1909
+    "firstFrame": 1909,
+    "palette": 3
   },
   {
     "id": 1,
@@ -23,7 +24,8 @@
       13
     ],
     "occurrences": 24,
-    "firstFrame": 1909
+    "firstFrame": 1909,
+    "palette": 0
   },
   {
     "id": 2,
@@ -36,7 +38,8 @@
       47
     ],
     "occurrences": 3,
-    "firstFrame": 2056
+    "firstFrame": 2056,
+    "palette": 0
   },
   {
     "id": 3,
@@ -49,7 +52,8 @@
       43
     ],
     "occurrences": 3,
-    "firstFrame": 2056
+    "firstFrame": 2056,
+    "palette": 3
   },
   {
     "id": 4,
@@ -62,6 +66,7 @@
       199
     ],
     "occurrences": 3,
-    "firstFrame": 2056
+    "firstFrame": 2056,
+    "palette": 2
   }
 ]

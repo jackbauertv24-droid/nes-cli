@@ -101,7 +101,10 @@ PNGHandler.save(demo.getFrameBuffer(), out('smb3_title.png'));
 new SpritesCommand(demo).execute({
   format: 'metasprite',
   outputDir: out('sprites-title-demo'),
-  frames: 340
+  frames: 340,
+  // Mario is palette 0 and Luigi palette 1 here, so this splits the poses into
+  // a sheet per character.
+  byPalette: true
 });
 
 // A frame from the middle of the routine, with a character mid-jump. This uses

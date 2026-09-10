@@ -216,6 +216,10 @@ class MetaspriteAnalyzer {
             tiles: cluster.map((s) => s.tile).sort((a, b) => a - b),
             spriteCount: cluster.length,
             spriteHeight: frame.spriteHeight,
+            // Which sprite palette the group is drawn with. Games usually give
+            // each character its own, so this is a serviceable stand-in for
+            // "who is this" - it is what separates Mario from Luigi.
+            palette: this.dominantPalette(cluster),
             png: rendered.png,
             firstFrame: frame.frame,
             occurrences: 0
@@ -229,6 +233,15 @@ class MetaspriteAnalyzer {
     return Array.from(candidates.values())
       .filter((m) => m.occurrences >= 2)
       .sort((a, b) => b.occurrences - a.occurrences);
+  }
+
+  /** The palette most of a cluster's sprites are drawn with. */
+  dominantPalette(cluster) {
+    const counts = new Map();
+    for (const sprite of cluster) {
+      counts.set(sprite.palette, (counts.get(sprite.palette) || 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
   }
 
   getSpriteConfiguration(cluster, bounds) {
@@ -266,8 +279,56 @@ class MetaspriteAnalyzer {
       tiles: meta.tiles,
       occurrences: meta.occurrences,
       firstFrame: meta.firstFrame,
+      palette: meta.palette,
       png: meta.png
     }));
+  }
+
+  /**
+   * Tile metasprites into one sheet.
+   *
+   * Cells are uniform - the largest pose sets the size - and each pose is
+   * centred horizontally and sat on the bottom of its cell, so a character's
+   * feet line up across the row the way a hand-made sprite sheet would. The
+   * background stays fully transparent; this is an asset, not a preview.
+   *
+   * The poses within a sheet are ordered by how often each was seen, not by
+   * time. Putting them in animation order means tracking a character across
+   * frames, which is a different job - see --format animation.
+   */
+  static saveSheet(metasprites, outputPath, columns = 8) {
+    if (metasprites.length === 0) {
+      return null;
+    }
+
+    const cellW = Math.max(...metasprites.map((m) => m.width));
+    const cellH = Math.max(...metasprites.map((m) => m.height));
+    const perRow = Math.min(columns, metasprites.length);
+    const rows = Math.ceil(metasprites.length / perRow);
+
+    const sheet = new PNG({ width: perRow * cellW, height: rows * cellH });
+    sheet.data.fill(0);
+
+    metasprites.forEach((meta, i) => {
+      const originX = (i % perRow) * cellW + Math.floor((cellW - meta.width) / 2);
+      const originY = Math.floor(i / perRow) * cellH + (cellH - meta.height);
+
+      for (let y = 0; y < meta.height; y++) {
+        for (let x = 0; x < meta.width; x++) {
+          const src = (y * meta.width + x) * 4;
+          if (meta.png.data[src + 3] === 0) continue;
+
+          const dst = ((originY + y) * sheet.width + originX + x) * 4;
+          sheet.data[dst] = meta.png.data[src];
+          sheet.data[dst + 1] = meta.png.data[src + 1];
+          sheet.data[dst + 2] = meta.png.data[src + 2];
+          sheet.data[dst + 3] = 255;
+        }
+      }
+    });
+
+    fs.writeFileSync(outputPath, PNG.sync.write(sheet));
+    return { path: outputPath, cellWidth: cellW, cellHeight: cellH, columns: perRow, rows };
   }
 
   saveMetasprites(metasprites, outputDir) {
@@ -286,7 +347,8 @@ class MetaspriteAnalyzer {
         spriteCount: meta.spriteCount,
         tiles: meta.tiles,
         occurrences: meta.occurrences,
-        firstFrame: meta.firstFrame
+        firstFrame: meta.firstFrame,
+        palette: meta.palette
       });
     }
 

@@ -102,7 +102,24 @@ nes-cli sprites --format metasprite --frames 120 --output ./sprites
   ```
 - **`metasprite`** - runs N frames and finds groups of sprites that sit together
   and recur, which is how a character built from four or six hardware sprites is
-  recovered as one image.
+  recovered as one image. Writes one PNG per distinct pose, plus `sheet.png`
+  tiling them all into uniform cells with a transparent background - each pose
+  centred and sat on the bottom of its cell, so feet line up across the row.
+
+  Add `--by-palette` to get a sheet per sprite palette as well. Games nearly
+  always give each character its own palette, so in practice that is one sheet
+  per character:
+
+  ```bash
+  nes-cli sprites --format metasprite --frames 340 --by-palette --output ./out
+  # out/metasprites/sheet.png           every pose found
+  # out/metasprites/sheet-palette0.png  Mario's poses
+  # out/metasprites/sheet-palette1.png  Luigi's poses
+  ```
+
+  Poses within a sheet are ordered by how often each was seen, not by time.
+  Ordering them as an animation means following one character from frame to
+  frame, which is a different job - see `--format animation`, not yet built.
 
 A game's attract or demo mode is often the easiest place to harvest characters,
 because it animates them for you and needs no input. Left alone at its title
@@ -132,7 +149,11 @@ the rendered screen, so extracted images contain no background and colour index
 own scanline, which is what makes this work on cartridges that swap CHR mid
 frame. See `TECHNICAL_FINDINGS.md`.
 
-`--format animation` is not implemented yet.
+`--format animation` is not implemented yet. The difference from `metasprite`
+is worth stating: `metasprite` answers "which distinct poses appear in this
+stretch of play", and gives you them as a sheet; `animation` would answer "in
+what order does one character move through them", which needs the character
+tracked across frames rather than each frame grouped on its own.
 
 ### Audio
 
