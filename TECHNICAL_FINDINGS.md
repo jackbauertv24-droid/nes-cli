@@ -84,6 +84,30 @@ Work in colour indices instead. Index 0 is the PPU's transparency slot and is
 never ambiguous with index 3, whatever colours they resolve to. Convert to RGB
 only when writing the file, and write index 0 as alpha 0.
 
+## Sprite size is one global setting, not a per-sprite one
+
+PPUCTRL bit 5 chooses 8x8 or 8x16 for **all 64 sprites at once**. A game cannot
+draw some sprites at one size and some at the other in the same frame.
+
+This is worth stating because the obvious inference from watching a game is the
+wrong one. Mario growing after a mushroom is not a sprite that changed size: it
+is a character that went from a 16x16 metasprite to a 16x32 one by using more
+hardware sprites. The size setting is untouched. The same is true of every
+character that appears to change dimensions.
+
+For extraction that means a growth transition shows up as two different
+metasprites, which is correct - they are genuinely different poses - and the
+cluster bounding box changes, so a size bound has to be loose enough for the
+larger form.
+
+The setting *can* be changed between frames, or in principle partway down one,
+which would be the same trap as mid-frame CHR banking. In practice it is not:
+measured over 7500 frames of three cartridges, the size in force while the
+visible area was drawn never once differed from the value present at the end of
+the frame - even for Castlevania, which writes PPUCTRL about twice a frame and
+changed the size mid-render on 106 of 2500 frames. Reading it at extraction time
+is safe.
+
 ## Sprite tile addressing
 
 **8x8 mode.** The pattern table comes from PPUCTRL bit 3. The tile byte is the
