@@ -232,6 +232,32 @@ class Emulator {
     return hash >>> 0;
   }
 
+  /**
+   * Whether a tile draws nothing at all - every pixel colour index 0.
+   *
+   * Games pad a character out to a fixed number of hardware sprites and point
+   * the unused ones at a blank tile. SMB1 does this: small Mario is still eight
+   * sprites, four of which are tile $FC and draw nothing, so taking the OAM
+   * entries at face value gives a 16x32 character with an empty top half.
+   */
+  isPatternTileBlank(table, index, screenY) {
+    const base = (table & 1) * 0x1000 + (index & 0xff) * 16;
+    const recorded = screenY == null ? null : this.chrRecorder.chrForScreenRow(screenY);
+    const vram = recorded || this.nes.ppu.vramMem;
+
+    for (let i = 0; i < 16; i++) {
+      if (vram[base + i]) return false;
+    }
+
+    return true;
+  }
+
+  /** Whether a sprite's tiles are all blank, so it contributes no pixels. */
+  isSpriteBlank(sprite) {
+    const { table, tiles } = this.resolveSpriteTiles(sprite.tile);
+    return tiles.every((tile) => this.isPatternTileBlank(table, tile, sprite.screenY));
+  }
+
   is8x16Sprites() {
     return this.nes.ppu.f_spriteSize === 1;
   }

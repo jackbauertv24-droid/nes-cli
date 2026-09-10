@@ -1,53 +1,122 @@
 {
   "id": 2,
   "palette": 0,
-  "firstFrame": 1945,
-  "lastFrame": 2020,
-  "totalFrames": 40,
-  "poseCount": 3,
+  "firstFrame": 1290,
+  "lastFrame": 1382,
+  "totalFrames": 80,
+  "poseCount": 5,
   "cell": {
     "width": 32,
     "height": 32
   },
-  "columns": 3,
+  "columns": 8,
   "timeline": [
     {
       "pose": 0,
-      "frames": 4,
-      "startFrame": 1967,
+      "frames": 15,
+      "startFrame": 1290,
       "x": 120,
-      "y": 129,
-      "oam": [
-        18,
-        33,
-        48,
-        63
-      ]
-    },
-    {
-      "pose": 1,
-      "frames": 16,
-      "startFrame": 1971,
-      "x": 120,
-      "y": 169,
+      "y": 161,
       "oam": [
         22,
-        37,
+        26,
         41,
         56
       ]
     },
     {
-      "pose": 2,
-      "frames": 20,
-      "startFrame": 1987,
+      "pose": 1,
+      "frames": 22,
+      "startFrame": 1312,
       "x": 120,
-      "y": 177,
+      "y": 136,
       "oam": [
-        27,
+        20,
+        24,
+        39,
+        54
+      ]
+    },
+    {
+      "pose": 0,
+      "frames": 9,
+      "startFrame": 1334,
+      "x": 120,
+      "y": 132,
+      "oam": [
+        18,
+        22,
+        37,
+        52
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 2,
+      "startFrame": 1343,
+      "x": 120,
+      "y": 161,
+      "oam": [
+        19,
+        30,
+        34,
+        49
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 17,
+      "startFrame": 1345,
+      "x": 120,
+      "y": 169,
+      "oam": [
+        17,
+        21,
+        36,
+        51
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 6,
+      "startFrame": 1362,
+      "x": 120,
+      "y": 161,
+      "oam": [
+        24,
+        28,
+        43,
+        58
+      ]
+    },
+    {
+      "pose": 3,
+      "frames": 5,
+      "startFrame": 1368,
+      "x": 120,
+      "y": 161,
+      "oam": [
+        17,
+        32,
+        36,
+        51
+      ]
+    },
+    {
+      "pose": 4,
+      "frames": 4,
+      "startFrame": 1379,
+      "x": 104,
+      "y": 161,
+      "oam": [
+        20,
+        24,
         31,
-        46,
-        61
+        35,
+        39,
+        50,
+        54,
+        58
       ]
     }
   ]

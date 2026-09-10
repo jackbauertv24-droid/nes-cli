@@ -306,13 +306,16 @@ node tools/make-castlevania-examples.js /path/to/castlevania.nes
 
 ```bash
 node tools/make-zelda-examples.js /path/to/zelda.nes
+node tools/make-smb1-examples.js /path/to/smb1.nes
 ```
 
 `examples/` is SMB3 - MMC3, CHR-ROM, bank switching mid-frame.
 `examples-castlevania/` is Castlevania - UNROM, CHR-RAM, characters rotated
 through the sprite table every frame. `examples-zelda/` is Zelda - MMC1,
 CHR-RAM, and no demo at all, so its generator registers a save file and drives
-Link with `--hold`. The three exercise substantially different paths.
+Link with `--hold`. `examples-smb1/` is Super Mario Bros. - NROM, fixed
+CHR-ROM that never moves, and the only one of the four with 8x8 sprites. Between
+them they exercise substantially different paths.
 
 Those scripts are convenience wrappers, not privileged ones: they call the same
 commands documented above with the same options, and exist only to record the

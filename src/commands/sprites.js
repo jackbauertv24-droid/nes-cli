@@ -135,7 +135,7 @@ class SpritesCommand {
     const clips = this.withHeldButtons(options.hold, () =>
       tracker.track(
         frames,
-        options.maxGap == null ? 8 : options.maxGap,
+        options.maxGap == null ? 0 : options.maxGap,
         options.minSprites == null ? 2 : options.minSprites
       )
     );
@@ -187,7 +187,7 @@ class SpritesCommand {
     const found = this.withHeldButtons(options.hold, () =>
       analyzer.analyzeMetasprites(
         frames,
-        options.maxGap == null ? 8 : options.maxGap,
+        options.maxGap == null ? 0 : options.maxGap,
         options.minSprites == null ? 2 : options.minSprites
       )
     );

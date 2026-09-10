@@ -4,8 +4,8 @@
     "directory": "clip-000",
     "palette": 0,
     "poseCount": 4,
-    "cells": 28,
-    "totalFrames": 246
+    "cells": 29,
+    "totalFrames": 251
   },
   {
     "id": 1,
@@ -13,6 +13,6 @@
     "palette": 1,
     "poseCount": 6,
     "cells": 25,
-    "totalFrames": 241
+    "totalFrames": 245
   }
 ]

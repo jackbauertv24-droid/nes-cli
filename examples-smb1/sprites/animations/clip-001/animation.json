@@ -1,0 +1,39 @@
+{
+  "id": 1,
+  "palette": 3,
+  "firstFrame": 1102,
+  "lastFrame": 1295,
+  "totalFrames": 193,
+  "poseCount": 2,
+  "cell": {
+    "width": 16,
+    "height": 16
+  },
+  "columns": 2,
+  "timeline": [
+    {
+      "pose": 0,
+      "frames": 2,
+      "startFrame": 1102,
+      "x": 253,
+      "y": 193,
+      "oam": [
+        42,
+        44
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 191,
+      "startFrame": 1105,
+      "x": 246,
+      "y": 193,
+      "oam": [
+        42,
+        43,
+        44,
+        45
+      ]
+    }
+  ]
+}

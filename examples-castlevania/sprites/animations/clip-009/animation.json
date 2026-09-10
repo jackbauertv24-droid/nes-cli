@@ -1,49 +1,35 @@
 {
   "id": 9,
-  "palette": 1,
-  "firstFrame": 1290,
-  "lastFrame": 1364,
-  "totalFrames": 6,
+  "palette": 3,
+  "firstFrame": 1235,
+  "lastFrame": 1254,
+  "totalFrames": 16,
   "poseCount": 2,
   "cell": {
-    "width": 64,
-    "height": 64
+    "width": 16,
+    "height": 24
   },
   "columns": 2,
   "timeline": [
     {
       "pose": 0,
-      "frames": 3,
-      "startFrame": 1343,
-      "x": 149,
-      "y": 113,
+      "frames": 4,
+      "startFrame": 1235,
+      "x": 127,
+      "y": 129,
       "oam": [
-        20,
-        27,
-        31,
-        35,
         39,
-        42,
-        46,
-        50,
-        61
+        51
       ]
     },
     {
       "pose": 1,
-      "frames": 3,
-      "startFrame": 1346,
-      "x": 148,
-      "y": 113,
+      "frames": 12,
+      "startFrame": 1243,
+      "x": 122,
+      "y": 129,
       "oam": [
-        20,
-        31,
-        35,
-        39,
         46,
-        50,
-        54,
-        58,
         61
       ]
     }

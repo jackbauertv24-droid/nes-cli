@@ -206,7 +206,7 @@ program
   .option('-i, --individual', 'Also write one PNG per tile/sprite')
   .option('--frames <n>', 'Frames to analyse for metasprites', '60')
   .option('--at-row <n>', 'For chr: read the banks active on this screen row')
-  .option('--max-gap <n>', 'Pixel gap that still counts as one metasprite', '8')
+  .option('--max-gap <n>', 'Pixel gap between sprites that still counts as one character; 0 means touching', '0')
   .option('--min-sprites <n>', 'Minimum sprites per metasprite', '2')
   .option('--min-y <n>', 'Ignore sprites above this screen row')
   .option('--max-y <n>', 'Ignore sprites below this screen row')

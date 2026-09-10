@@ -1,116 +1,110 @@
 {
   "id": 4,
-  "palette": 3,
-  "firstFrame": 827,
-  "lastFrame": 887,
-  "totalFrames": 27,
-  "poseCount": 3,
+  "palette": 1,
+  "firstFrame": 1469,
+  "lastFrame": 1923,
+  "totalFrames": 44,
+  "poseCount": 4,
   "cell": {
-    "width": 16,
-    "height": 32
+    "width": 64,
+    "height": 64
   },
-  "columns": 8,
+  "columns": 6,
   "timeline": [
     {
       "pose": 0,
-      "frames": 9,
-      "startFrame": 827,
-      "x": 24,
-      "y": 129,
+      "frames": 5,
+      "startFrame": 1472,
+      "x": 140,
+      "y": 113,
       "oam": [
-        25,
-        59
-      ]
-    },
-    {
-      "pose": 1,
-      "frames": 2,
-      "startFrame": 843,
-      "x": 32,
-      "y": 161,
-      "oam": [
-        22,
-        37,
-        41,
-        56
-      ]
-    },
-    {
-      "pose": 2,
-      "frames": 2,
-      "startFrame": 847,
-      "x": 32,
-      "y": 161,
-      "oam": [
+        17,
+        21,
+        24,
         28,
+        32,
         43,
+        47,
         58,
         62
       ]
     },
     {
       "pose": 1,
-      "frames": 2,
-      "startFrame": 851,
-      "x": 32,
+      "frames": 6,
+      "startFrame": 1535,
+      "x": 151,
       "y": 161,
       "oam": [
-        17,
-        32,
-        36,
-        51
-      ]
-    },
-    {
-      "pose": 2,
-      "frames": 2,
-      "startFrame": 855,
-      "x": 32,
-      "y": 161,
-      "oam": [
-        23,
-        38,
-        53,
-        57
-      ]
-    },
-    {
-      "pose": 1,
-      "frames": 2,
-      "startFrame": 859,
-      "x": 32,
-      "y": 161,
-      "oam": [
-        27,
-        31,
-        46,
-        61
-      ]
-    },
-    {
-      "pose": 2,
-      "frames": 2,
-      "startFrame": 863,
-      "x": 32,
-      "y": 161,
-      "oam": [
-        18,
+        25,
+        29,
         33,
+        40,
+        44,
         48,
-        52
+        59,
+        63
+      ]
+    },
+    {
+      "pose": 0,
+      "frames": 6,
+      "startFrame": 1599,
+      "x": 116,
+      "y": 113,
+      "oam": [
+        21,
+        25,
+        29,
+        36,
+        40,
+        44,
+        48,
+        55,
+        59
       ]
     },
     {
       "pose": 1,
       "frames": 6,
-      "startFrame": 867,
-      "x": 32,
+      "startFrame": 1791,
+      "x": 105,
+      "y": 161,
+      "oam": [
+        18,
+        29,
+        33,
+        44,
+        48,
+        52,
+        59,
+        63
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 8,
+      "startFrame": 1900,
+      "x": 120,
       "y": 161,
       "oam": [
         22,
-        26,
-        41,
+        37,
+        52,
         56
+      ]
+    },
+    {
+      "pose": 3,
+      "frames": 13,
+      "startFrame": 1911,
+      "x": 120,
+      "y": 152,
+      "oam": [
+        21,
+        36,
+        51,
+        55
       ]
     }
   ]

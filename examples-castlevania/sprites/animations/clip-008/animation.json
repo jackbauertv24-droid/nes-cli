@@ -1,12 +1,12 @@
 {
   "id": 8,
-  "palette": 3,
-  "firstFrame": 1101,
-  "lastFrame": 1111,
-  "totalFrames": 11,
+  "palette": 2,
+  "firstFrame": 995,
+  "lastFrame": 1014,
+  "totalFrames": 16,
   "poseCount": 2,
   "cell": {
-    "width": 12,
+    "width": 16,
     "height": 24
   },
   "columns": 2,
@@ -14,23 +14,23 @@
     {
       "pose": 0,
       "frames": 4,
-      "startFrame": 1101,
-      "x": 152,
+      "startFrame": 995,
+      "x": 92,
       "y": 129,
       "oam": [
-        30,
-        49
+        48,
+        63
       ]
     },
     {
       "pose": 1,
-      "frames": 7,
-      "startFrame": 1105,
-      "x": 152,
+      "frames": 12,
+      "startFrame": 1003,
+      "x": 88,
       "y": 129,
       "oam": [
-        23,
-        38
+        28,
+        43
       ]
     }
   ]

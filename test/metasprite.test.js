@@ -232,3 +232,37 @@ describe('sprite sheets', () => {
     expect(fs.existsSync(path.join(outDir, 'metasprites', 'sheet-palette0.png'))).toBe(false);
   });
 });
+
+describe('how close is one character', () => {
+  test('the gap is measured edge to edge, and zero means touching', () => {
+    const analyzer = new MetaspriteAnalyzer(boot('metasprite.nes', 20));
+    const sprite = (id, x) => ({
+      id,
+      x,
+      screenY: 100,
+      tile: 0x05,
+      palette: 1,
+      flipHorizontal: 0,
+      flipVertical: 0
+    });
+
+    // Adjacent: 8 wide at x and x+8, so they touch.
+    expect(analyzer.clusterSpritesByPosition([sprite(0, 64), sprite(1, 72)], 0, 16)).toHaveLength(1);
+
+    // Eight pixels of clear space between them.
+    expect(analyzer.clusterSpritesByPosition([sprite(0, 64), sprite(1, 80)], 0, 16)).toHaveLength(2);
+    expect(analyzer.clusterSpritesByPosition([sprite(0, 64), sprite(1, 80)], 8, 16)).toHaveLength(1);
+  });
+
+  test('the default is tight, because a loose one absorbs neighbours', () => {
+    // This is the tuning that SMB1 exposed. Its sprites are 8x8 and packed more
+    // tightly than the 8x16 games', so a gap of even 2 chained Mario to a score
+    // popup and produced a 33px-wide "character". Measured across four
+    // cartridges, 0 was never worse and twice better.
+    const analyzer = new MetaspriteAnalyzer(boot('metasprite.nes', 20));
+    const found = analyzer.analyzeMetasprites(10);
+
+    expect(found).toHaveLength(1);
+    expect(found[0].width).toBe(16);
+  });
+});

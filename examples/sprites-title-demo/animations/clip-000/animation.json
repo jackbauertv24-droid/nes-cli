@@ -3,7 +3,7 @@
   "palette": 0,
   "firstFrame": 104,
   "lastFrame": 361,
-  "totalFrames": 246,
+  "totalFrames": 251,
   "poseCount": 4,
   "cell": {
     "width": 16,
@@ -350,10 +350,23 @@
       ]
     },
     {
+      "pose": 2,
+      "frames": 3,
+      "startFrame": 261,
+      "x": 127,
+      "y": 161,
+      "oam": [
+        4,
+        5,
+        7,
+        8
+      ]
+    },
+    {
       "pose": 3,
-      "frames": 28,
-      "startFrame": 273,
-      "x": 119,
+      "frames": 30,
+      "startFrame": 271,
+      "x": 120,
       "y": 161,
       "oam": [
         4,

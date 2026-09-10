@@ -3,11 +3,11 @@
   "palette": 0,
   "firstFrame": 713,
   "lastFrame": 1252,
-  "totalFrames": 395,
-  "poseCount": 17,
+  "totalFrames": 430,
+  "poseCount": 15,
   "cell": {
     "width": 45,
-    "height": 64
+    "height": 43
   },
   "columns": 16,
   "timeline": [
@@ -26,7 +26,7 @@
     },
     {
       "pose": 1,
-      "frames": 34,
+      "frames": 35,
       "startFrame": 746,
       "x": 39,
       "y": 161,
@@ -39,6 +39,19 @@
     },
     {
       "pose": 2,
+      "frames": 3,
+      "startFrame": 782,
+      "x": 32,
+      "y": 152,
+      "oam": [
+        19,
+        34,
+        38,
+        53
+      ]
+    },
+    {
+      "pose": 3,
       "frames": 7,
       "startFrame": 796,
       "x": 28,
@@ -55,7 +68,7 @@
       ]
     },
     {
-      "pose": 3,
+      "pose": 4,
       "frames": 2,
       "startFrame": 804,
       "x": 20,
@@ -71,31 +84,29 @@
       ]
     },
     {
-      "pose": 4,
-      "frames": 4,
-      "startFrame": 819,
-      "x": 24,
-      "y": 129,
+      "pose": 2,
+      "frames": 2,
+      "startFrame": 817,
+      "x": 32,
+      "y": 155,
       "oam": [
+        18,
         22,
-        30,
         37,
-        49,
-        52,
-        56
+        52
       ]
     },
     {
       "pose": 1,
-      "frames": 19,
-      "startFrame": 823,
+      "frames": 26,
+      "startFrame": 819,
       "x": 32,
       "y": 161,
       "oam": [
-        26,
-        30,
-        45,
-        60
+        22,
+        37,
+        52,
+        56
       ]
     },
     {
@@ -243,30 +254,61 @@
     },
     {
       "pose": 9,
-      "frames": 2,
-      "startFrame": 997,
-      "x": 92,
-      "y": 129,
+      "frames": 5,
+      "startFrame": 967,
+      "x": 52,
+      "y": 130,
       "oam": [
-        20,
+        19,
         23,
-        27,
-        35,
-        42,
+        30,
+        34,
+        38,
+        49,
+        53,
         57
       ]
     },
     {
+      "pose": 10,
+      "frames": 3,
+      "startFrame": 972,
+      "x": 57,
+      "y": 126,
+      "oam": [
+        21,
+        25,
+        29,
+        40,
+        44,
+        55,
+        59
+      ]
+    },
+    {
+      "pose": 8,
+      "frames": 2,
+      "startFrame": 995,
+      "x": 96,
+      "y": 155,
+      "oam": [
+        21,
+        36,
+        40,
+        55
+      ]
+    },
+    {
       "pose": 0,
-      "frames": 51,
-      "startFrame": 999,
+      "frames": 56,
+      "startFrame": 997,
       "x": 97,
       "y": 161,
       "oam": [
+        23,
         27,
         42,
-        57,
-        61
+        57
       ]
     },
     {
@@ -335,7 +377,7 @@
       ]
     },
     {
-      "pose": 10,
+      "pose": 9,
       "frames": 5,
       "startFrame": 1080,
       "x": 103,
@@ -352,7 +394,7 @@
       ]
     },
     {
-      "pose": 11,
+      "pose": 10,
       "frames": 7,
       "startFrame": 1085,
       "x": 103,
@@ -368,7 +410,7 @@
       ]
     },
     {
-      "pose": 12,
+      "pose": 11,
       "frames": 2,
       "startFrame": 1092,
       "x": 119,
@@ -386,7 +428,7 @@
       ]
     },
     {
-      "pose": 13,
+      "pose": 12,
       "frames": 2,
       "startFrame": 1094,
       "x": 119,
@@ -404,7 +446,7 @@
       ]
     },
     {
-      "pose": 14,
+      "pose": 13,
       "frames": 2,
       "startFrame": 1096,
       "x": 119,
@@ -489,7 +531,7 @@
     },
     {
       "pose": 7,
-      "frames": 5,
+      "frames": 7,
       "startFrame": 1135,
       "x": 120,
       "y": 161,
@@ -501,7 +543,20 @@
       ]
     },
     {
-      "pose": 15,
+      "pose": 6,
+      "frames": 7,
+      "startFrame": 1142,
+      "x": 120,
+      "y": 161,
+      "oam": [
+        29,
+        44,
+        48,
+        63
+      ]
+    },
+    {
+      "pose": 14,
       "frames": 2,
       "startFrame": 1159,
       "x": 119,
@@ -580,7 +635,7 @@
       ]
     },
     {
-      "pose": 10,
+      "pose": 9,
       "frames": 5,
       "startFrame": 1207,
       "x": 104,
@@ -597,8 +652,8 @@
       ]
     },
     {
-      "pose": 11,
-      "frames": 6,
+      "pose": 10,
+      "frames": 7,
       "startFrame": 1212,
       "x": 104,
       "y": 126,
@@ -613,35 +668,33 @@
       ]
     },
     {
-      "pose": 16,
+      "pose": 8,
       "frames": 2,
+      "startFrame": 1235,
+      "x": 120,
+      "y": 155,
+      "oam": [
+        27,
+        31,
+        46,
+        61
+      ]
+    },
+    {
+      "pose": 0,
+      "frames": 4,
       "startFrame": 1237,
       "x": 120,
-      "y": 129,
+      "y": 161,
       "oam": [
-        24,
         31,
-        36,
         46,
         50,
         61
       ]
     },
     {
-      "pose": 0,
-      "frames": 2,
-      "startFrame": 1239,
-      "x": 120,
-      "y": 161,
-      "oam": [
-        18,
-        33,
-        48,
-        52
-      ]
-    },
-    {
-      "pose": 10,
+      "pose": 9,
       "frames": 5,
       "startFrame": 1241,
       "x": 104,
@@ -658,8 +711,8 @@
       ]
     },
     {
-      "pose": 11,
-      "frames": 6,
+      "pose": 10,
+      "frames": 7,
       "startFrame": 1246,
       "x": 104,
       "y": 161,

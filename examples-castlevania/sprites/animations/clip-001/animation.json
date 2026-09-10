@@ -1,92 +1,67 @@
 {
   "id": 1,
   "palette": 0,
-  "firstFrame": 1290,
-  "lastFrame": 1364,
-  "totalFrames": 47,
-  "poseCount": 3,
+  "firstFrame": 1940,
+  "lastFrame": 2067,
+  "totalFrames": 93,
+  "poseCount": 4,
   "cell": {
-    "width": 16,
+    "width": 32,
     "height": 32
   },
-  "columns": 6,
+  "columns": 4,
   "timeline": [
     {
       "pose": 0,
-      "frames": 9,
-      "startFrame": 1290,
+      "frames": 2,
+      "startFrame": 1941,
       "x": 120,
-      "y": 161,
+      "y": 108,
+      "oam": [
+        29,
+        34,
+        44,
+        48,
+        63
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 10,
+      "startFrame": 1961,
+      "x": 120,
+      "y": 111,
+      "oam": [
+        25,
+        40,
+        55,
+        59
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 16,
+      "startFrame": 1971,
+      "x": 120,
+      "y": 169,
       "oam": [
         22,
-        26,
+        37,
         41,
         56
       ]
     },
     {
-      "pose": 1,
-      "frames": 7,
-      "startFrame": 1327,
+      "pose": 3,
+      "frames": 65,
+      "startFrame": 1987,
       "x": 120,
-      "y": 129,
+      "y": 177,
       "oam": [
-        25,
-        40,
-        44,
-        59
-      ]
-    },
-    {
-      "pose": 0,
-      "frames": 9,
-      "startFrame": 1334,
-      "x": 120,
-      "y": 132,
-      "oam": [
-        18,
-        22,
-        37,
-        52
-      ]
-    },
-    {
-      "pose": 2,
-      "frames": 2,
-      "startFrame": 1343,
-      "x": 120,
-      "y": 161,
-      "oam": [
-        19,
-        30,
-        34,
-        49
-      ]
-    },
-    {
-      "pose": 1,
-      "frames": 17,
-      "startFrame": 1345,
-      "x": 120,
-      "y": 169,
-      "oam": [
-        17,
-        21,
-        36,
-        51
-      ]
-    },
-    {
-      "pose": 2,
-      "frames": 3,
-      "startFrame": 1362,
-      "x": 120,
-      "y": 161,
-      "oam": [
-        24,
-        28,
-        43,
-        58
+        27,
+        31,
+        46,
+        61
       ]
     }
   ]

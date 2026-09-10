@@ -199,6 +199,18 @@ Make the reach grow while a character is missing. Games drop sprites when the
 screen is busy - Castlevania's demo loses Simon for six to twelve frames at a
 time - and a character keeps moving while it is not being drawn.
 
+## A character is not always the sprites allocated to it
+
+Games reserve a fixed block of hardware sprites per character and point the
+unused ones at a tile that draws nothing. Small Mario in SMB1 is still eight
+sprites; four of them are tile $FC, which is blank. Nothing in the OAM entry
+distinguishes those from real ones - same coordinates, same attributes, a
+perfectly ordinary tile number.
+
+Take them at face value and the character comes out twice as tall as its art,
+with an empty band across half of it. Check whether a sprite's tile data is
+entirely colour index 0 and drop it before grouping.
+
 ## Grouping sprites into characters
 
 Characters are several hardware sprites side by side, so grouping by proximity
@@ -208,6 +220,12 @@ modes worth guarding against explicitly.
 A line of evenly spaced sprites - a row of coins, a fence, a scrolling strip -
 chains into one cluster spanning the screen. Bound the bounding box; a character
 is small.
+
+Measure the gap edge to edge and keep it tight. A composite character is built
+from sprites that touch, so a threshold of zero is the principled one, and
+anything looser starts absorbing neighbours. This bites hardest on 8x8 games,
+whose sprites sit closer together: on SMB1 a threshold of two pixels was already
+enough to weld Mario to a floating score popup.
 
 Games hide unused sprites by parking them off-screen, and often park all of them
 at identical coordinates. Those stack into a cluster of dozens of sprites

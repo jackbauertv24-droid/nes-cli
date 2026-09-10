@@ -220,7 +220,7 @@ class AnimationTracker {
   }
 
   /** Step the emulator, following every character it can. */
-  track(frameCount = 120, maxGap = 8, minSprites = 2) {
+  track(frameCount = 120, maxGap = 0, minSprites = 2) {
     const open = [];
     const closed = [];
 

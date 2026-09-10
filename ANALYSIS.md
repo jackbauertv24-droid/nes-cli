@@ -362,7 +362,8 @@ assembler in `tools/asm6502.js`:
 | `animation.nes` | a 16x32 character cycling three poses every eight frames while walking right - pins cross-frame tracking, hold durations and strip ordering |
 | `chrram.nes` | a cartridge with no CHR-ROM that animates by rewriting tile data while the OAM tile byte never changes - pins finding 9 |
 | `flicker.nes` | the same walking character, rotated through a fresh block of OAM slots every frame and not drawn at all for four frames in every thirty-two - pins finding 10 |
-| `sprites8x8.nes` | the other sprite size, drawn from the pattern table PPUCTRL selects, in all four flip combinations - the 8x8 path that neither commercial cartridge uses |
+| `sprites8x8.nes` | the other sprite size, drawn from the pattern table PPUCTRL selects, in all four flip combinations |
+| `padded.nes` | a 16x16 character allocated four 8x16 sprites, the upper two blank - the padding SMB1 uses, which used to double a character's height |
 
 Regenerate with `npm run fixtures`.
 

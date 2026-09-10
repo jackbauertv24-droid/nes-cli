@@ -237,6 +237,27 @@ function buildSprites() {
 }
 
 /**
+ * padded.nes - a 16x16 character padded out to 16x32 with blank sprites.
+ *
+ * Games allocate a fixed number of hardware sprites per character and point the
+ * unused ones at a tile that draws nothing. SMB1 does exactly this: small Mario
+ * is still eight sprites, four of them tile $FC, which is blank. Taking the OAM
+ * entries at face value gives a character twice as tall as the art, with an
+ * empty half.
+ *
+ * Here the top two sprites use tile byte $01 - pattern table 1, tiles 0 and 1,
+ * which this fixture leaves empty - and the bottom two carry the art.
+ */
+function buildPadded() {
+  return buildSpriteRom([
+    { x: 64, screenY: 100, tile: 0x01, attributes: 0x01 }, // blank padding
+    { x: 72, screenY: 100, tile: 0x01, attributes: 0x01 }, // blank padding
+    { x: 64, screenY: 116, tile: 0x05, attributes: 0x01 }, // the visible art
+    { x: 72, screenY: 116, tile: 0x05, attributes: 0x01 }
+  ]);
+}
+
+/**
  * metasprite.nes - a 16x32 character built from four adjacent 8x16 sprites,
  * plus one lone sprite up in the HUD area on a different palette.
  *
@@ -976,6 +997,7 @@ const FIXTURES = {
   'chrram.nes': buildChrRam,
   'flicker.nes': buildFlicker,
   'sprites8x8.nes': buildSprites8x8,
+  'padded.nes': buildPadded,
 };
 
 fs.mkdirSync(OUT_DIR, { recursive: true });

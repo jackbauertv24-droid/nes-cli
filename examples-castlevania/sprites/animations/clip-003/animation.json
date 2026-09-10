@@ -1,27 +1,27 @@
 {
   "id": 3,
   "palette": 0,
-  "firstFrame": 1484,
-  "lastFrame": 1544,
-  "totalFrames": 31,
-  "poseCount": 4,
+  "firstFrame": 1469,
+  "lastFrame": 1622,
+  "totalFrames": 74,
+  "poseCount": 9,
   "cell": {
-    "width": 16,
+    "width": 32,
     "height": 32
   },
-  "columns": 6,
+  "columns": 15,
   "timeline": [
     {
       "pose": 0,
-      "frames": 6,
-      "startFrame": 1489,
+      "frames": 13,
+      "startFrame": 1482,
       "x": 120,
-      "y": 118,
+      "y": 108,
       "oam": [
-        21,
-        25,
-        40,
-        55
+        28,
+        43,
+        47,
+        62
       ]
     },
     {
@@ -87,6 +87,130 @@
         42,
         46,
         61
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 3,
+      "startFrame": 1544,
+      "x": 120,
+      "y": 161,
+      "oam": [
+        18,
+        33,
+        48,
+        63
+      ]
+    },
+    {
+      "pose": 4,
+      "frames": 2,
+      "startFrame": 1550,
+      "x": 120,
+      "y": 161,
+      "oam": [
+        24,
+        28,
+        43,
+        58
+      ]
+    },
+    {
+      "pose": 5,
+      "frames": 2,
+      "startFrame": 1563,
+      "x": 104,
+      "y": 161,
+      "oam": [
+        27,
+        42,
+        57,
+        61
+      ]
+    },
+    {
+      "pose": 6,
+      "frames": 4,
+      "startFrame": 1567,
+      "x": 104,
+      "y": 161,
+      "oam": [
+        20,
+        31,
+        35,
+        50
+      ]
+    },
+    {
+      "pose": 4,
+      "frames": 2,
+      "startFrame": 1584,
+      "x": 120,
+      "y": 161,
+      "oam": [
+        23,
+        38,
+        42,
+        57
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 5,
+      "startFrame": 1588,
+      "x": 120,
+      "y": 161,
+      "oam": [
+        29,
+        44,
+        59,
+        63
+      ]
+    },
+    {
+      "pose": 3,
+      "frames": 6,
+      "startFrame": 1594,
+      "x": 120,
+      "y": 161,
+      "oam": [
+        20,
+        24,
+        39,
+        54
+      ]
+    },
+    {
+      "pose": 7,
+      "frames": 5,
+      "startFrame": 1600,
+      "x": 104,
+      "y": 161,
+      "oam": [
+        17,
+        21,
+        28,
+        32,
+        36,
+        47,
+        51,
+        62
+      ]
+    },
+    {
+      "pose": 8,
+      "frames": 7,
+      "startFrame": 1605,
+      "x": 104,
+      "y": 161,
+      "oam": [
+        19,
+        23,
+        27,
+        38,
+        42,
+        53,
+        57
       ]
     }
   ]

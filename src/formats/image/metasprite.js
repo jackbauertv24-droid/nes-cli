@@ -47,7 +47,11 @@ class MetaspriteAnalyzer {
       (s) =>
         s.screenY >= this.filter.minY &&
         s.screenY <= this.filter.maxY &&
-        this.filter.palettes.includes(s.palette)
+        this.filter.palettes.includes(s.palette) &&
+        // A sprite pointed at a blank tile draws nothing. Games use them as
+        // padding, and counting them stretches a character's bounding box over
+        // empty space and inflates its sprite count.
+        !this.emulator.isSpriteBlank(s)
     );
 
     this.frameHistory.push({
@@ -69,8 +73,16 @@ class MetaspriteAnalyzer {
     return this.frameHistory;
   }
 
-  /** Flood-fill sprites into groups whose bounding boxes are within maxGap. */
-  clusterSpritesByPosition(sprites, maxGap = 8, spriteHeight = 16) {
+  /**
+   * Flood-fill sprites into groups whose bounding boxes are within maxGap.
+   *
+   * The gap is measured edge to edge, so 0 means "touching or overlapping",
+   * which is how a composite character is actually built. Anything larger
+   * starts absorbing neighbours: on SMB1, whose sprites are 8x8 and therefore
+   * packed more tightly, a gap of 2 is already enough to chain Mario to a score
+   * popup and produce a 33px-wide "character".
+   */
+  clusterSpritesByPosition(sprites, maxGap = 0, spriteHeight = 16) {
     const clusters = [];
     const visited = new Set();
 
@@ -189,7 +201,7 @@ class MetaspriteAnalyzer {
    * this frame's tiles only while this frame is current, so a render deferred
    * to the end of the run would draw whatever bank happened to be loaded last.
    */
-  analyzeMetasprites(frameCount = 60, maxGap = 8, minSprites = 2) {
+  analyzeMetasprites(frameCount = 60, maxGap = 0, minSprites = 2) {
     this.frameHistory = [];
     const candidates = new Map();
 
