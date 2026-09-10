@@ -106,6 +106,19 @@ class MetaspriteAnalyzer {
     return clusters;
   }
 
+  /**
+   * Whether a cluster is small enough to be a character rather than a chained
+   * row of scenery or a pile of parked sprites.
+   */
+  isPlausibleCharacter(cluster, bounds) {
+    return (
+      bounds != null &&
+      cluster.length <= this.maxSprites &&
+      bounds.width <= this.maxSize.width &&
+      bounds.height <= this.maxSize.height
+    );
+  }
+
   getClusterBounds(cluster, spriteHeight = 16) {
     if (cluster.length === 0) return null;
 
@@ -195,11 +208,7 @@ class MetaspriteAnalyzer {
         if (cluster.length < minSprites) continue;
 
         const bounds = this.getClusterBounds(cluster, frame.spriteHeight);
-        if (
-          cluster.length > this.maxSprites ||
-          bounds.width > this.maxSize.width ||
-          bounds.height > this.maxSize.height
-        ) {
+        if (!this.isPlausibleCharacter(cluster, bounds)) {
           continue;
         }
 

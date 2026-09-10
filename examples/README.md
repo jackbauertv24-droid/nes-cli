@@ -25,6 +25,9 @@ character sprites in the game, and it needs nothing but patience.
 | `sprites-title-demo/metasprites/sheet-palette1.png` | Luigi's poses |
 | `sprites-title-demo/metasprites/` | The same 15 poses as individual PNGs, plus `metasprites.json` |
 | `sprites-title-demo/contact-sheet.png` | A preview of them all on a checkerboard |
+| `sprites-title-demo/animations/clip-000/` | Mario's animation: 28 cells in order, with durations |
+| `sprites-title-demo/animations/clip-001/` | Luigi's, 18 cells |
+| `sprites-title-demo/animations/clip-002/` | Luigi again after he leaves and returns |
 
 The `sheet-palette*.png` files are the useful artefact: one sheet per sprite
 palette, which here means one per character. Poses are ordered by how often each
@@ -35,6 +38,19 @@ and is not built yet.
 Sheets have a genuinely transparent background, so they are usable as assets.
 `contact-sheet.png` is the exception: it is drawn on a checkerboard purely so
 the transparency is visible in a preview.
+
+The `animations/` clips are the same characters put back in time order.
+`clip-000/animation.json` reads:
+
+```
+Ax33 Bx6 Cx6 Bx6 Ax6 Bx6 Cx8 Bx6 Ax6 Bx5 Cx5 Bx4 Ax4 ... Dx28 Ax61
+```
+
+which is idle, a `B,C,B,A` walk cycle repeating six times and speeding up as it
+goes, a jump held 28 frames, then idle again. `strip.png` is that sequence as
+one cell per entry. Mario and Luigi are tracked separately because they use
+different palettes; Luigi gets two clips because he leaves the screen partway
+through and comes back, which closes one clip and opens another.
 
 ## Gameplay
 

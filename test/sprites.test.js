@@ -112,10 +112,4 @@ describe('sprite extraction', () => {
       expect(meta[0].renderedPixels).toBeUndefined();
     });
   });
-
-  test('animation extraction reports that it is unimplemented', () => {
-    const outDir = tmpdir('anim');
-    // It used to throw TypeError: analyzer.trackAnimations is not a function.
-    expect(new SpritesCommand(emulator).execute({ format: 'animation', outputDir: outDir })).toBe(false);
-  });
 });

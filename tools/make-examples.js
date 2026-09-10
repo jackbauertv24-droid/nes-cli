@@ -110,6 +110,17 @@ new SpritesCommand(demo).execute({
 // A frame from the middle of the routine, with a character mid-jump. This uses
 // a second emulator because the metasprite analysis above has already run the
 // first one past this point.
+// Animation clips need their own run: tracking advances the emulator, and the
+// demo emulator above is already past the walk cycle.
+const demoAnim = new Emulator();
+demoAnim.loadROM(romPath);
+demoAnim.run(100);
+new SpritesCommand(demoAnim).execute({
+  format: 'animation',
+  outputDir: out('sprites-title-demo'),
+  frames: 260
+});
+
 const demoFrame = new Emulator();
 demoFrame.loadROM(romPath);
 demoFrame.run(250);

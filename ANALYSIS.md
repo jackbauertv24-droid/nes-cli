@@ -257,6 +257,7 @@ assembler in `tools/asm6502.js`:
 | `sprites.nes` | two 8x16 sprites from pattern table 1 over a distinct background - pins tile addressing, transparency and background bleed |
 | `metasprite.nes` | a 16x32 character from four adjacent sprites, plus a lone HUD sprite - pins clustering and the filters |
 | `banked.nes` | an MMC3 cartridge that swaps the CHR bank at $1000 partway down every frame, so the same tile index is different art at the top and bottom of the screen - pins finding 7 |
+| `animation.nes` | a 16x32 character cycling three poses every eight frames while walking right - pins cross-frame tracking, hold durations and strip ordering |
 
 Regenerate with `npm run fixtures`.
 
@@ -264,12 +265,8 @@ Regenerate with `npm run fixtures`.
 
 ## Still to do
 
-**Animation extraction.** Deferred by agreement. `--format animation` currently
-reports that it is unimplemented rather than crashing. Doing it properly means
-tracking metasprite identity across frames as the character moves and its pose
-changes, which is a different problem from the single-frame grouping that
-`--format metasprite` now does.
-
-**Better metasprite identity.** Grouping is per-frame; a character that changes
-pose is recorded as several unrelated metasprites. Tracking identity across
-frames is the same work that animation extraction needs.
+**Cycle detection.** `--format animation` gives the full timeline in order but
+does not try to find the repeating loop inside it. Mario's walk is plainly
+`B,C,B,A` repeated, and pulling that out automatically would be useful - but it
+is a guess, and a wrong one is hard to notice, so it was left out rather than
+shipped as if it were certain.

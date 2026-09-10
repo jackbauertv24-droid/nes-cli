@@ -1,5 +1,6 @@
 const SpriteHandler = require('../formats/image/spritesheet');
 const MetaspriteAnalyzer = require('../formats/image/metasprite');
+const AnimationTracker = require('../formats/image/animation');
 const FileUtils = require('../utils/file');
 const { JSONHandler } = require('../formats/data/json-csv');
 const chalk = require('chalk');
@@ -22,10 +23,7 @@ class SpritesCommand {
       case 'metasprite':
         return this.extractMetasprites(path.join(outputDir, 'metasprites'), options);
       case 'animation':
-        console.error(
-          chalk.red('Animation extraction is not implemented yet. Use --format metasprite.')
-        );
-        return false;
+        return this.extractAnimations(path.join(outputDir, 'animations'), options);
       case 'all':
       default:
         this.extractPatternTables(path.join(outputDir, 'chr'), options.individual, options.atRow);
@@ -85,6 +83,56 @@ class SpritesCommand {
           `${this.emulator.is8x16Sprites() ? '8x16' : '8x8'} mode`
       )
     );
+    return outputDir;
+  }
+
+  /**
+   * Follow characters across frames and write each one's poses in order.
+   *
+   * Where metasprite extraction answers "which poses appear in this stretch",
+   * this answers "in what order does one character move through them, and for
+   * how long".
+   */
+  extractAnimations(outputDir, options = {}) {
+    FileUtils.ensureDir(outputDir);
+
+    const frames = options.frames || 120;
+    const tracker = new AnimationTracker(this.emulator, options);
+
+    console.log(chalk.blue(`Tracking characters over ${frames} frames...`));
+
+    const clips = tracker.track(
+      frames,
+      options.maxGap == null ? 8 : options.maxGap,
+      options.minSprites == null ? 2 : options.minSprites
+    );
+
+    if (clips.length === 0) {
+      console.log(
+        chalk.yellow(
+          'No animated characters found. Try more frames, or check that a character ' +
+            'is on screen and moving (nes-cli dump oam).'
+        )
+      );
+      return null;
+    }
+
+    const index = AnimationTracker.saveAnimations(
+      clips,
+      outputDir,
+      options.sheetColumns || 16
+    );
+
+    console.log(chalk.green(`Animations: ${outputDir}`));
+    for (const clip of index) {
+      console.log(
+        chalk.gray(
+          `  ${clip.directory}: ${clip.cells} cells, ${clip.poseCount} poses, ` +
+            `${clip.totalFrames} frames, palette ${clip.palette}`
+        )
+      );
+    }
+
     return outputDir;
   }
 

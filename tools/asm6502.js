@@ -107,6 +107,9 @@ const M = {
   iny: (a) => a.imp(0xc8),
   dey: (a) => a.imp(0x88),
   lsrA: (a) => a.imp(0x4a),
+  aslA: (a) => a.imp(0x0a),
+  clc: (a) => a.imp(0x18),
+  tax: (a) => a.imp(0xaa),
 
   ldaImm: (a, v) => a.imm(0xa9, v),
   ldxImm: (a, v) => a.imm(0xa2, v),
@@ -114,10 +117,13 @@ const M = {
   andImm: (a, v) => a.imm(0x29, v),
   cpxImm: (a, v) => a.imm(0xe0, v),
   cpyImm: (a, v) => a.imm(0xc0, v),
+  cmpImm: (a, v) => a.imm(0xc9, v),
+  adcImm: (a, v) => a.imm(0x69, v),
 
   ldaZp: (a, addr) => a.zp(0xa5, addr),
   staZp: (a, addr) => a.zp(0x85, addr),
   rolZp: (a, addr) => a.zp(0x26, addr),
+  incZp: (a, addr) => a.zp(0xe6, addr),
 
   ldaAbs: (a, t) => a.abs(0xad, t),
   staAbs: (a, t) => a.abs(0x8d, t),

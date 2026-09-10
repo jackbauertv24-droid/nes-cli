@@ -86,6 +86,7 @@ than 60.
 nes-cli sprites --format oam --output ./sprites --individual
 nes-cli sprites --format chr --output ./sprites
 nes-cli sprites --format metasprite --frames 120 --output ./sprites
+nes-cli sprites --format animation --frames 260 --output ./sprites
 ```
 
 - **`oam`** - the 64 hardware sprites as they are on this frame, each as a PNG
@@ -149,11 +150,56 @@ the rendered screen, so extracted images contain no background and colour index
 own scanline, which is what makes this work on cartridges that swap CHR mid
 frame. See `TECHNICAL_FINDINGS.md`.
 
-`--format animation` is not implemented yet. The difference from `metasprite`
-is worth stating: `metasprite` answers "which distinct poses appear in this
-stretch of play", and gives you them as a sheet; `animation` would answer "in
-what order does one character move through them", which needs the character
-tracked across frames rather than each frame grouped on its own.
+#### Animation
+
+`--format animation` follows individual characters from frame to frame and
+records the poses each moves through, in order, with how long each was held.
+
+The difference from `metasprite` is the axis they work on. `metasprite` groups
+sprites *within* a frame and then discards time, answering "which distinct poses
+appear in this stretch". `animation` links those groups *across* frames,
+answering "in what order does one character move through them".
+
+Each clip gets its own directory:
+
+```
+sprites/animations/
+  animations.json          index of the clips found
+  clip-000/
+    strip.png              one cell per pose change, in order
+    animation.json         the timeline
+  clip-001/ ...
+```
+
+`strip.png` reads left to right, top to bottom, one cell per entry in the
+timeline - so a pose that recurs appears once for each time it was held. Cells
+are uniform and bottom-aligned, and where the character actually was on screen
+is recorded in the JSON rather than baked into the image.
+
+```json
+{ "id": 0, "palette": 0, "poseCount": 4, "cell": { "width": 16, "height": 32 },
+  "timeline": [ { "pose": 0, "frames": 33, "startFrame": 104, "x": 240, "y": 161,
+                  "oam": [8, 9, 11, 12] }, ... ] }
+```
+
+Identity is decided strongest-signal-first: a candidate must share the
+character's palette; overlapping OAM slots are strong evidence, since games
+usually keep a character in the same slots for as long as it exists; failing
+that, the nearest centre within `--max-move`. The position fallback is what
+carries games that re-sort OAM to spread sprite flicker.
+
+| Option | Default | Effect |
+|---|---|---|
+| `--min-hold <n>` | 2 | Ignore poses held fewer frames than this - single-frame flicker between two real poses |
+| `--min-poses <n>` | 2 | A clip needs this many distinct poses; below it, the character was standing still |
+| `--max-move <n>` | 24 | Pixels a character may move between frames and still be the same one |
+| `--max-clips <n>` | 10 | How many characters to write, most frames on screen first |
+
+Poses are in temporal order, but no attempt is made to find the repeating cycle
+within them. On SMB3's title demo Mario's clip reads
+`A×33 B×6 C×6 B×6 A×6 B×6 C×8 …` - the walk cycle is plainly `B,C,B,A`
+repeating, but spotting that automatically is a guess, and the full timeline is
+there for you to cut.
 
 ### Audio
 

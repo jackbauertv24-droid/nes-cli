@@ -183,7 +183,7 @@ program
 program
   .command('sprites')
   .description('Extract sprites from OAM and the live pattern tables')
-  .option('-f, --format <format>', 'chr, oam, metasprite, or all', 'all')
+  .option('-f, --format <format>', 'chr, oam, metasprite, animation, or all', 'all')
   .option('-o, --output <path>', 'Output directory', './sprites')
   .option('-i, --individual', 'Also write one PNG per tile/sprite')
   .option('--frames <n>', 'Frames to analyse for metasprites', '60')
@@ -196,7 +196,11 @@ program
   .option('--max-size <n>', 'Reject clusters larger than this many pixels square', '64')
   .option('--max-sprites <n>', 'Reject clusters of more than this many sprites', '16')
   .option('--by-palette', 'Also write one sheet per sprite palette, usually one per character')
-  .option('--sheet-columns <n>', 'Poses per row in a sheet', '8')
+  .option('--sheet-columns <n>', 'Poses per row in a sheet or strip (default 8 for sheets, 16 for strips)')
+  .option('--min-hold <n>', 'For animation: ignore poses held fewer frames than this', '2')
+  .option('--min-poses <n>', 'For animation: a clip needs at least this many distinct poses', '2')
+  .option('--max-move <n>', 'For animation: pixels a character may move between frames', '24')
+  .option('--max-clips <n>', 'For animation: how many characters to write', '10')
   .action((options) => {
     withSession((emulator) =>
       new SpritesCommand(emulator).execute({
@@ -216,7 +220,11 @@ program
         maxHeight: parseInt(options.maxSize, 10),
         maxSprites: parseInt(options.maxSprites, 10),
         byPalette: options.byPalette,
-        sheetColumns: parseInt(options.sheetColumns, 10)
+        sheetColumns: options.sheetColumns == null ? undefined : parseInt(options.sheetColumns, 10),
+        minHold: parseInt(options.minHold, 10),
+        minPoses: parseInt(options.minPoses, 10),
+        maxMove: parseInt(options.maxMove, 10),
+        maxClips: parseInt(options.maxClips, 10)
       })
     );
   });

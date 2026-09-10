@@ -380,12 +380,172 @@ function buildBanked() {
   return buildMMC3(a.assemble(), chr);
 }
 
+/**
+ * animation.nes - a 16x32 character that cycles through three poses while
+ * walking to the right.
+ *
+ * Four 8x16 sprites in OAM slots 0-3 form the character. Every 8 frames the
+ * tile bytes change to the next pose, and every other frame it moves one pixel
+ * right, so a tracker has to follow both a changing appearance and a changing
+ * position. The slots stay put, which is the common case on real hardware and
+ * the strongest identity signal available.
+ *
+ * Poses are solid blocks of colour index 1, 2 and 3, with transparent corners.
+ * They are meant to be told apart by a test, not admired.
+ */
+function buildAnimation() {
+  const chr = Buffer.alloc(8192, 0);
+
+  // Three poses x four sprites x two tiles = 24 tiles in pattern table 1.
+  for (let pose = 0; pose < 3; pose++) {
+    for (let tile = 0; tile < 8; tile++) {
+      const pixels = new Array(64).fill(pose + 1);
+      pixels[0] = 0;
+      pixels[7] = 0;
+      pixels[56] = 0;
+      pixels[63] = 0;
+      encodeTile(pixels).copy(chr, 0x1000 + (pose * 8 + tile) * 16);
+    }
+  }
+
+  const palettes = [
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+    0x21, 0x16, 0x2a, 0x30, 0x21, 0x12, 0x27, 0x30,
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+  ];
+
+  // Tile bytes, four per pose. Bit 0 set selects pattern table 1; the rest is
+  // the index of the pair's top tile.
+  const tiles = [];
+  for (let pose = 0; pose < 3; pose++) {
+    for (let sprite = 0; sprite < 4; sprite++) {
+      tiles.push(((pose * 8 + sprite * 2) & 0xfe) | 1);
+    }
+  }
+
+  const FRAME = 0x10;
+  const POSE_TIMER = 0x11;
+  const POSE = 0x12;
+  const XPOS = 0x13;
+
+  const a = new Assembler(0xc000);
+  resetPreamble(a);
+
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, PPUCTRL);
+  M.staAbs(a, PPUMASK);
+  M.staZp(a, FRAME);
+  M.staZp(a, POSE_TIMER);
+  M.staZp(a, POSE);
+  M.ldaImm(a, 32);
+  M.staZp(a, XPOS);
+
+  setPpuAddr(a, 0x3f00);
+  M.ldxImm(a, 0x00);
+  a.label('palloop');
+  M.ldaAbsX(a, 'paltable');
+  M.staAbs(a, PPUDATA);
+  M.inx(a);
+  M.cpxImm(a, palettes.length);
+  M.bne(a, 'palloop');
+
+  // Park all 64 sprites off-screen once; the loop then rewrites only the four
+  // that make up the character, which keeps the vblank work small.
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, OAMADDR);
+  M.ldyImm(a, 64);
+  a.label('parkloop');
+  M.ldaImm(a, 0xff);
+  M.staAbs(a, OAMDATA);
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, OAMDATA);
+  M.staAbs(a, OAMDATA);
+  M.staAbs(a, OAMDATA);
+  M.dey(a);
+  M.bne(a, 'parkloop');
+
+  M.ldaImm(a, 0x20); // 8x16 sprites
+  M.staAbs(a, PPUCTRL);
+  M.ldaImm(a, 0x1e);
+  M.staAbs(a, PPUMASK);
+
+  a.label('main');
+  a.label('waitvb');
+  M.bitAbs(a, PPUSTATUS);
+  M.bpl(a, 'waitvb');
+
+  M.incZp(a, FRAME);
+
+  // Advance the pose every 8 frames, wrapping after three.
+  M.incZp(a, POSE_TIMER);
+  M.ldaZp(a, POSE_TIMER);
+  M.cmpImm(a, 8);
+  M.bne(a, 'moved');
+  M.ldaImm(a, 0x00);
+  M.staZp(a, POSE_TIMER);
+  M.incZp(a, POSE);
+  M.ldaZp(a, POSE);
+  M.cmpImm(a, 3);
+  M.bne(a, 'moved');
+  M.ldaImm(a, 0x00);
+  M.staZp(a, POSE);
+  a.label('moved');
+
+  // Step one pixel right on every other frame.
+  M.ldaZp(a, FRAME);
+  M.andImm(a, 1);
+  M.bne(a, 'nomove');
+  M.incZp(a, XPOS);
+  a.label('nomove');
+
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, OAMADDR);
+
+  // X indexes the tile table at pose * 4.
+  M.ldaZp(a, POSE);
+  M.aslA(a);
+  M.aslA(a);
+  M.tax(a);
+
+  const emitSprite = (yValue, offsetX) => {
+    M.ldaImm(a, yValue);
+    M.staAbs(a, OAMDATA); // y
+    M.ldaAbsX(a, 'tiletable');
+    M.staAbs(a, OAMDATA); // tile
+    M.ldaImm(a, 0x01);
+    M.staAbs(a, OAMDATA); // attributes: sprite palette 1
+    M.ldaZp(a, XPOS);
+    if (offsetX) {
+      M.clc(a);
+      M.adcImm(a, offsetX);
+    }
+    M.staAbs(a, OAMDATA); // x
+    M.inx(a);
+  };
+
+  emitSprite(99, 0); // top-left, screen row 100
+  emitSprite(99, 8); // top-right
+  emitSprite(115, 0); // bottom-left, screen row 116
+  emitSprite(115, 8); // bottom-right
+
+  M.jmp(a, 'main');
+
+  a.label('paltable');
+  a.db(palettes);
+  a.label('tiletable');
+  a.db(tiles);
+
+  return buildNROM(a.assemble(), chr);
+}
+
 const FIXTURES = {
   'solid.nes': buildSolid,
   'input.nes': buildInput,
   'sprites.nes': buildSprites,
   'metasprite.nes': buildMetasprite,
   'banked.nes': buildBanked,
+  'animation.nes': buildAnimation,
 };
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
