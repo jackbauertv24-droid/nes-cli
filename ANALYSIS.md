@@ -362,6 +362,7 @@ assembler in `tools/asm6502.js`:
 | `animation.nes` | a 16x32 character cycling three poses every eight frames while walking right - pins cross-frame tracking, hold durations and strip ordering |
 | `chrram.nes` | a cartridge with no CHR-ROM that animates by rewriting tile data while the OAM tile byte never changes - pins finding 9 |
 | `flicker.nes` | the same walking character, rotated through a fresh block of OAM slots every frame and not drawn at all for four frames in every thirty-two - pins finding 10 |
+| `sprites8x8.nes` | the other sprite size, drawn from the pattern table PPUCTRL selects, in all four flip combinations - the 8x8 path that neither commercial cartridge uses |
 
 Regenerate with `npm run fixtures`.
 
@@ -379,6 +380,34 @@ now `--preview`.
 This is checked rather than assumed: running the Castlevania sequence by hand
 reproduces 93 of the 94 committed files byte for byte, the exception being audio
 for the reason in finding 11.
+
+## Coverage, and what a further cartridge would add
+
+Two cartridges have been used: SMB3 (MMC3, CHR-ROM, mid-frame bank switching)
+and Castlevania (UNROM, CHR-RAM, sprite-table rotation). Between them they broke
+this tool four separate ways, which is a good argument for testing more - but it
+is worth knowing what is actually still uncovered before reaching for one.
+
+Both are **8x16 throughout**, so until `sprites8x8.nes` was added nothing had
+ever run the 8x8 branch, where the pattern table comes from PPUCTRL bit 3 rather
+than from bit 0 of the tile byte. Both flip sprites constantly - SMB3 draws 3600
+horizontally flipped sprites in 200 frames - but no test asserted the result was
+right. Both gaps are now closed by fixture rather than by cartridge.
+
+What a real ROM could still add, roughly in order of value:
+
+- **A game that uses 8x8 sprites in anger.** The fixture proves the mechanism;
+  a real one would prove that grouping and tracking behave when a character is
+  four 8x8 sprites rather than two 8x16 ones, which changes cluster shapes.
+- **MMC1 (mapper 1).** Its CHR paths reach the recorder only indirectly -
+  `load8kVromBank` delegates to `loadVromBank`, which is hooked - so it should
+  work, but "should" is doing some work in that sentence.
+- **A game that scrolls vertically**, where sprites cross the top and bottom
+  edges rather than the sides.
+
+Mapper coverage beyond that has diminishing returns: jsnes implements fourteen
+mappers, and every one of them reaches tile memory through either the
+`loadVromBank` family or a $2007 write, both of which are now recorded.
 
 ## Still to do
 

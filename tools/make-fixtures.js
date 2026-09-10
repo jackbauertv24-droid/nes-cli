@@ -867,6 +867,105 @@ function buildFlicker() {
   return buildNROM(a.assemble(), chr);
 }
 
+/**
+ * sprites8x8.nes - the other sprite size, and all four flip combinations.
+ *
+ * Everything else here runs in 8x16 mode, and so do both of the commercial
+ * cartridges this project has been tested against, which left the 8x8 path
+ * unexercised. The two resolve tiles completely differently: in 8x16 mode bit 0
+ * of the tile byte picks the pattern table, while in 8x8 mode the tile byte is
+ * the whole index and the table comes from bit 3 of PPUCTRL.
+ *
+ * This ROM sets that bit, so the art lives in table 1 and a reader that assumes
+ * table 0 gets four blank sprites. The tile is an asymmetric corner piece drawn
+ * four times - unflipped, flipped horizontally, vertically, and both - so a
+ * mirror applied on the wrong axis, or not at all, is unmistakable.
+ */
+function buildSprites8x8() {
+  const chr = Buffer.alloc(8192, 0);
+
+  // A corner: thick down the left edge, thick along the bottom, empty elsewhere.
+  // Distinct under every reflection.
+  const corner = [
+    3, 3, 3, 0, 0, 0, 0, 0,
+    3, 0, 0, 0, 0, 0, 0, 0,
+    3, 0, 0, 0, 0, 0, 0, 0,
+    2, 0, 0, 0, 0, 0, 0, 0,
+    2, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0,
+    1, 1, 1, 1, 0, 0, 0, 0,
+  ];
+  encodeTile(corner).copy(chr, 0x1000 + 4 * 16);
+
+  const palettes = [
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+    0x21, 0x16, 0x2a, 0x30, 0x21, 0x12, 0x27, 0x30,
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+  ];
+
+  // Same tile index throughout; only the flip bits in the attribute differ.
+  const oam = new Array(256).fill(0);
+  for (let i = 0; i < 64; i++) {
+    oam[i * 4] = 0xff;
+  }
+  [
+    [64, 0x01], // palette 1, no flip
+    [80, 0x41], // flipped horizontally
+    [96, 0x81], // flipped vertically
+    [112, 0xc1], // both
+  ].forEach(([x, attributes], i) => {
+    oam.splice(i * 4, 4, 99, 0x04, attributes, x);
+  });
+
+  const a = new Assembler(0xc000);
+  resetPreamble(a);
+
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, PPUCTRL);
+  M.staAbs(a, PPUMASK);
+
+  setPpuAddr(a, 0x3f00);
+  M.ldxImm(a, 0x00);
+  a.label('palloop');
+  M.ldaAbsX(a, 'paltable');
+  M.staAbs(a, PPUDATA);
+  M.inx(a);
+  M.cpxImm(a, palettes.length);
+  M.bne(a, 'palloop');
+
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, OAMADDR);
+  M.ldxImm(a, 0x00);
+  a.label('oamloop');
+  M.ldaAbsX(a, 'oamtable');
+  M.staAbs(a, OAMDATA);
+  M.inx(a);
+  M.bne(a, 'oamloop');
+
+  // Bit 5 clear: 8x8 sprites. Bit 3 set: sprites come from pattern table 1.
+  M.ldaImm(a, 0x08);
+  M.staAbs(a, PPUCTRL);
+  M.ldaImm(a, 0x1e);
+  M.staAbs(a, PPUMASK);
+
+  M.ldaAbs(a, PPUSTATUS);
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, PPUSCROLL);
+  M.staAbs(a, PPUSCROLL);
+
+  a.label('forever');
+  M.jmp(a, 'forever');
+
+  a.label('paltable');
+  a.db(palettes);
+  a.label('oamtable');
+  a.db(oam);
+
+  return buildNROM(a.assemble(), chr);
+}
+
 const FIXTURES = {
   'solid.nes': buildSolid,
   'input.nes': buildInput,
@@ -876,6 +975,7 @@ const FIXTURES = {
   'animation.nes': buildAnimation,
   'chrram.nes': buildChrRam,
   'flicker.nes': buildFlicker,
+  'sprites8x8.nes': buildSprites8x8,
 };
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
