@@ -146,6 +146,15 @@ characters:
 nes-cli sprites --format metasprite --min-y 64 --palettes 0,1 --max-gap 8
 ```
 
+A game with no attract-mode demo has to be driven while frames are analysed, or
+the character stands still throughout. `--hold` presses buttons for the duration
+of the extraction:
+
+```bash
+nes-cli sprites --format animation --frames 150 --hold RIGHT --output ./walk
+nes-cli sprites --format metasprite --frames 200 --hold B,RIGHT --output ./run
+```
+
 Two guards keep false positives out, and can be relaxed for an unusually large
 character: `--max-size` (default 64 pixels) rejects clusters too big to be a
 character, since proximity grouping is transitive and a row of coins will
@@ -283,9 +292,15 @@ node tools/make-examples.js /path/to/smb3.nes
 node tools/make-castlevania-examples.js /path/to/castlevania.nes
 ```
 
+```bash
+node tools/make-zelda-examples.js /path/to/zelda.nes
+```
+
 `examples/` is SMB3 - MMC3, CHR-ROM, bank switching mid-frame.
 `examples-castlevania/` is Castlevania - UNROM, CHR-RAM, characters rotated
-through the sprite table every frame. They exercise almost opposite paths.
+through the sprite table every frame. `examples-zelda/` is Zelda - MMC1,
+CHR-RAM, and no demo at all, so its generator registers a save file and drives
+Link with `--hold`. The three exercise substantially different paths.
 
 Those scripts are convenience wrappers, not privileged ones: they call the same
 commands documented above with the same options, and exist only to record the

@@ -4,6 +4,7 @@ const AnimationTracker = require('../formats/image/animation');
 const FileUtils = require('../utils/file');
 const { JSONHandler } = require('../formats/data/json-csv');
 const chalk = require('chalk');
+const Emulator = require('../core/emulator');
 const path = require('path');
 
 class SpritesCommand {
@@ -87,6 +88,30 @@ class SpritesCommand {
   }
 
   /**
+   * Hold buttons down for the duration of an extraction.
+   *
+   * Both metasprite and animation extraction advance the emulator themselves,
+   * with whatever input is currently held. Without this a character stands
+   * still throughout and there is no animation to find - which is most of what
+   * you want from a game with no attract-mode demo.
+   */
+  withHeldButtons(buttons, run) {
+    const held = (buttons || []).map((b) => Emulator.normalizeButton(b));
+
+    for (const button of held) {
+      this.emulator.buttonDown(1, button);
+    }
+
+    try {
+      return run();
+    } finally {
+      for (const button of held) {
+        this.emulator.buttonUp(1, button);
+      }
+    }
+  }
+
+  /**
    * Follow characters across frames and write each one's poses in order.
    *
    * Where metasprite extraction answers "which poses appear in this stretch",
@@ -99,12 +124,20 @@ class SpritesCommand {
     const frames = options.frames || 120;
     const tracker = new AnimationTracker(this.emulator, options);
 
-    console.log(chalk.blue(`Tracking characters over ${frames} frames...`));
+    console.log(
+      chalk.blue(
+        `Tracking characters over ${frames} frames` +
+          (options.hold && options.hold.length ? ` holding ${options.hold.join('+')}` : '') +
+          '...'
+      )
+    );
 
-    const clips = tracker.track(
-      frames,
-      options.maxGap == null ? 8 : options.maxGap,
-      options.minSprites == null ? 2 : options.minSprites
+    const clips = this.withHeldButtons(options.hold, () =>
+      tracker.track(
+        frames,
+        options.maxGap == null ? 8 : options.maxGap,
+        options.minSprites == null ? 2 : options.minSprites
+      )
     );
 
     if (clips.length === 0) {
@@ -151,10 +184,12 @@ class SpritesCommand {
 
     console.log(chalk.blue(`Analysing ${frames} frames for metasprites...`));
 
-    const found = analyzer.analyzeMetasprites(
-      frames,
-      options.maxGap == null ? 8 : options.maxGap,
-      options.minSprites == null ? 2 : options.minSprites
+    const found = this.withHeldButtons(options.hold, () =>
+      analyzer.analyzeMetasprites(
+        frames,
+        options.maxGap == null ? 8 : options.maxGap,
+        options.minSprites == null ? 2 : options.minSprites
+      )
     );
 
     if (found.length === 0) {

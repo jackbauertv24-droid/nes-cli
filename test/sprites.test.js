@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { PNG } = require('pngjs');
-const { boot, tmpdir } = require('./helpers');
+const { boot, tmpdir, fixture } = require('./helpers');
 const SpriteHandler = require('../src/formats/image/spritesheet');
 const SpritesCommand = require('../src/commands/sprites');
 
@@ -111,5 +111,54 @@ describe('sprite extraction', () => {
       expect(meta[0]).toMatchObject({ x: 64, screenY: 100, tile: 5, palette: 1 });
       expect(meta[0].renderedPixels).toBeUndefined();
     });
+  });
+});
+
+describe('driving a character during extraction', () => {
+  const Emulator = require('../src/core/emulator');
+
+  test('held buttons reach the game while frames are analysed', () => {
+    // Games without an attract-mode demo have to be driven, and both metasprite
+    // and animation extraction advance the emulator themselves. Without --hold
+    // the character stands still for every frame analysed.
+    const emulator = new Emulator();
+    emulator.loadROM(fixture('input.nes'));
+    emulator.run(30);
+
+    const command = new SpritesCommand(emulator);
+    const seen = [];
+
+    command.withHeldButtons(['START'], () => {
+      for (let i = 0; i < 5; i++) {
+        emulator.run(1);
+        seen.push(emulator.getNES().cpu.mem[0x10]);
+      }
+    });
+
+    // input.nes latches the controller into $0010; bit 4 is Start.
+    expect(seen.some((v) => v & 0x10)).toBe(true);
+  });
+
+  test('buttons are released afterwards, even if extraction throws', () => {
+    const emulator = new Emulator();
+    emulator.loadROM(fixture('input.nes'));
+    emulator.run(30);
+
+    const command = new SpritesCommand(emulator);
+    expect(() =>
+      command.withHeldButtons(['A'], () => {
+        throw new Error('boom');
+      })
+    ).toThrow('boom');
+
+    emulator.run(3);
+    expect(emulator.getNES().cpu.mem[0x10] & 0x80).toBe(0);
+  });
+
+  test('an unknown button is rejected before anything runs', () => {
+    const emulator = new Emulator();
+    emulator.loadROM(fixture('input.nes'));
+    const command = new SpritesCommand(emulator);
+    expect(() => command.withHeldButtons(['TURBO'], () => {})).toThrow(/Unknown button/);
   });
 });

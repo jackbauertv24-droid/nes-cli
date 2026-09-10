@@ -394,6 +394,25 @@ than from bit 0 of the tile byte. Both flip sprites constantly - SMB3 draws 3600
 horizontally flipped sprites in 200 frames - but no test asserted the result was
 right. Both gaps are now closed by fixture rather than by cartridge.
 
+A third cartridge, Zelda, was then tried against exactly this list - and the
+result is the useful part. It is MMC1, which was the top reason for choosing it,
+but it is also CHR-RAM: `vromCount` is zero, so every mapper bank routine
+returns immediately. Measured over 1200 frames of play, **0 mapper CHR bank
+calls and 8192 $2007 tile writes**. It exercises the same path Castlevania
+already did, and the MMC1 CHR gap is still open. It is 8x16 as well, so the 8x8
+gap stayed shut too.
+
+What it did find was a capability gap rather than a bug: Zelda has no demo, so
+a character has to be driven while frames are analysed, and nothing in the CLI
+could hold a button for the duration of an extraction. That is now `--hold`.
+Extraction itself was correct first time.
+
+The lesson generalises: after two cartridges chosen for contrast, a third mostly
+confirms. Pick the next one for a property that is genuinely absent - a CHR-ROM
+mapper other than MMC3, or 8x8 sprites - and verify the property before
+investing in a full run, which takes about ten seconds against the header and
+`is8x16Sprites()`.
+
 What a real ROM could still add, roughly in order of value:
 
 - **A game that uses 8x8 sprites in anger.** The fixture proves the mechanism;

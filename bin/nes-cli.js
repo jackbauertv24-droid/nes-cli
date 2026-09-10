@@ -204,6 +204,7 @@ program
   .option('--max-sprites <n>', 'Reject clusters of more than this many sprites', '16')
   .option('--by-palette', 'Also write one sheet per sprite palette, usually one per character')
   .option('--preview', 'Also write contact-sheet.png on a checkerboard, so transparency is visible')
+  .option('--hold <buttons>', 'Buttons to hold while extracting, e.g. RIGHT or B,RIGHT - needed when a game has no demo and the character must be driven')
   .option('--sheet-columns <n>', 'Poses per row in a sheet or strip (default 8 for sheets, 16 for strips)')
   .option('--min-hold <n>', 'For animation: ignore poses held fewer frames than this', '2')
   .option('--min-poses <n>', 'For animation: a clip needs at least this many distinct poses', '2')
@@ -230,6 +231,7 @@ program
         maxSprites: parseInt(options.maxSprites, 10),
         byPalette: options.byPalette,
         preview: options.preview,
+        hold: options.hold ? options.hold.split(',').map((x) => x.trim()).filter(Boolean) : undefined,
         sheetColumns: options.sheetColumns == null ? undefined : parseInt(options.sheetColumns, 10),
         minHold: parseInt(options.minHold, 10),
         minPoses: parseInt(options.minPoses, 10),

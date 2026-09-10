@@ -1,0 +1,156 @@
+[
+  {
+    "id": 0,
+    "filename": "metasprite_000.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      112,
+      112
+    ],
+    "occurrences": 160,
+    "firstFrame": 1355,
+    "palette": 1
+  },
+  {
+    "id": 1,
+    "filename": "metasprite_001.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      4,
+      6
+    ],
+    "occurrences": 50,
+    "firstFrame": 1356,
+    "palette": 0
+  },
+  {
+    "id": 2,
+    "filename": "metasprite_002.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      0,
+      2
+    ],
+    "occurrences": 49,
+    "firstFrame": 1358,
+    "palette": 0
+  },
+  {
+    "id": 3,
+    "filename": "metasprite_003.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      180,
+      182
+    ],
+    "occurrences": 40,
+    "firstFrame": 1384,
+    "palette": 2
+  },
+  {
+    "id": 4,
+    "filename": "metasprite_004.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      184,
+      186
+    ],
+    "occurrences": 39,
+    "firstFrame": 1388,
+    "palette": 2
+  },
+  {
+    "id": 5,
+    "filename": "metasprite_005.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      180,
+      182
+    ],
+    "occurrences": 26,
+    "firstFrame": 1400,
+    "palette": 2
+  },
+  {
+    "id": 6,
+    "filename": "metasprite_006.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      114,
+      114
+    ],
+    "occurrences": 24,
+    "firstFrame": 1371,
+    "palette": 1
+  },
+  {
+    "id": 7,
+    "filename": "metasprite_007.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      116,
+      116
+    ],
+    "occurrences": 24,
+    "firstFrame": 1377,
+    "palette": 1
+  },
+  {
+    "id": 8,
+    "filename": "metasprite_008.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      184,
+      186
+    ],
+    "occurrences": 23,
+    "firstFrame": 1404,
+    "palette": 2
+  },
+  {
+    "id": 9,
+    "filename": "metasprite_009.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      176,
+      176
+    ],
+    "occurrences": 19,
+    "firstFrame": 1383,
+    "palette": 2
+  },
+  {
+    "id": 10,
+    "filename": "metasprite_010.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      178,
+      178
+    ],
+    "occurrences": 13,
+    "firstFrame": 1420,
+    "palette": 2
+  }
+]

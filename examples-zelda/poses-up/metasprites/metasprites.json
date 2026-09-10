@@ -1,0 +1,30 @@
+[
+  {
+    "id": 0,
+    "filename": "metasprite_000.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      12,
+      14
+    ],
+    "occurrences": 51,
+    "firstFrame": 1156,
+    "palette": 0
+  },
+  {
+    "id": 1,
+    "filename": "metasprite_001.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      12,
+      14
+    ],
+    "occurrences": 48,
+    "firstFrame": 1160,
+    "palette": 0
+  }
+]
