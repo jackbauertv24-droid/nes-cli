@@ -199,6 +199,16 @@ class SpritesCommand {
       );
     }
 
+    if (options.preview) {
+      MetaspriteAnalyzer.saveSheet(
+        metasprites,
+        path.join(outputDir, 'contact-sheet.png'),
+        columns,
+        { checkerboard: true }
+      );
+      console.log(chalk.gray('  contact-sheet.png: the same, on a checkerboard'));
+    }
+
     if (!options.byPalette) {
       return;
     }

@@ -102,6 +102,44 @@ class ChrRecorder {
     this.dirtyScanline = null;
   }
 
+  /**
+   * Reseed from whatever is banked in right now, discarding any record of how
+   * the frame got there. Used after restoring a save state that carries no
+   * recorded segments: the current contents are the best available answer for
+   * every row, and far better than the previous frame's.
+   */
+  reset() {
+    this.beginFrame();
+  }
+
+  /** The frame's record, for carrying between processes. */
+  serialize() {
+    return this.segments.map((segment) => ({
+      scanline: segment.scanline === -Infinity ? null : segment.scanline,
+      chr: Buffer.from(Uint8Array.from(segment.chr)).toString('base64')
+    }));
+  }
+
+  /**
+   * Restore a record produced by serialize().
+   *
+   * Without this, a tool that saves state in one process and extracts sprites
+   * in another reads tile data from whenever the emulator was last stepped -
+   * for a fresh process, the boot frame.
+   */
+  restore(data) {
+    if (!Array.isArray(data) || data.length === 0) {
+      return false;
+    }
+
+    this.segments = data.map((segment) => ({
+      scanline: segment.scanline == null ? -Infinity : segment.scanline,
+      chr: Array.from(Buffer.from(segment.chr, 'base64'))
+    }));
+    this.dirtyScanline = null;
+    return true;
+  }
+
   /** Pattern memory as it stood while `screenY` was being drawn. */
   chrForScreenRow(screenY) {
     if (this.segments.length === 0) {

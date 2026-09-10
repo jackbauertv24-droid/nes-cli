@@ -63,6 +63,11 @@ function openSession() {
     emulator.setFrameBuffer(new Int32Array(Buffer.from(data.frameBuffer, 'base64').buffer));
   }
 
+  // Nor does it record how tile memory looked partway down the frame, which is
+  // what sprite extraction reads. Carry that too, or a game that re-banks CHR
+  // mid-frame extracts from the wrong banks.
+  emulator.chrRecorder.restore(data.chr);
+
   return emulator;
 }
 
@@ -73,6 +78,8 @@ function saveSession(emulator) {
   if (frame) {
     state.frameBuffer = Buffer.from(Int32Array.from(frame).buffer).toString('base64');
   }
+
+  state.chr = emulator.chrRecorder.serialize();
 
   fs.writeFileSync(sessionFile(), JSON.stringify(state));
 }
@@ -196,6 +203,7 @@ program
   .option('--max-size <n>', 'Reject clusters larger than this many pixels square', '64')
   .option('--max-sprites <n>', 'Reject clusters of more than this many sprites', '16')
   .option('--by-palette', 'Also write one sheet per sprite palette, usually one per character')
+  .option('--preview', 'Also write contact-sheet.png on a checkerboard, so transparency is visible')
   .option('--sheet-columns <n>', 'Poses per row in a sheet or strip (default 8 for sheets, 16 for strips)')
   .option('--min-hold <n>', 'For animation: ignore poses held fewer frames than this', '2')
   .option('--min-poses <n>', 'For animation: a clip needs at least this many distinct poses', '2')
@@ -221,6 +229,7 @@ program
         maxHeight: parseInt(options.maxSize, 10),
         maxSprites: parseInt(options.maxSprites, 10),
         byPalette: options.byPalette,
+        preview: options.preview,
         sheetColumns: options.sheetColumns == null ? undefined : parseInt(options.sheetColumns, 10),
         minHold: parseInt(options.minHold, 10),
         minPoses: parseInt(options.minPoses, 10),

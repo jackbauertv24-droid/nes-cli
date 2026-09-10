@@ -100,3 +100,66 @@ describe('session fidelity', () => {
     expect(colours.size).toBeGreaterThan(1);
   });
 });
+
+describe('reproducing extraction through the session', () => {
+  const Emulator = require('../src/core/emulator');
+  const SpriteHandler = require('../src/formats/image/spritesheet');
+
+  test('tile data survives a save state, not just the frame it was saved on', () => {
+    // jsnes state restores tile memory but says nothing about how the frame
+    // reached it, so a fresh process had only its own boot frame to go on and
+    // read almost every tile wrong. Against a real Castlevania cartridge this
+    // was 476 of 512 tiles.
+    const source = new Emulator();
+    source.loadROM(fixture('banked.nes'));
+    source.run(60);
+
+    const restored = new Emulator();
+    restored.loadROM(fixture('banked.nes'));
+    restored.setState(JSON.parse(JSON.stringify(source.getState())));
+
+    // banked.nes has different art at the top and bottom of the screen, so a
+    // stale record shows up immediately.
+    expect(restored.getPatternTile(1, 4, 190).join('')).toBe(
+      source.getPatternTile(1, 4, 190).join('')
+    );
+  });
+
+  test('a session carries the frame record between processes', () => {
+    const cwd = tmpdir('session-chr');
+
+    run(['load', fixture('banked.nes'), '--frames', '60'], cwd);
+    const session = JSON.parse(fs.readFileSync(path.join(cwd, '.nes-cli-session.json'), 'utf8'));
+    expect(Array.isArray(session.chr)).toBe(true);
+    expect(session.chr.length).toBeGreaterThan(0);
+  });
+
+  test('sprites extracted through the session match an in-process run', () => {
+    const cwd = tmpdir('session-sprites');
+
+    run(['load', fixture('banked.nes'), '--frames', '60'], cwd);
+    run(['sprites', '--format', 'oam', '--individual', '--output', './out'], cwd);
+
+    const direct = new Emulator();
+    direct.loadROM(fixture('banked.nes'));
+    direct.run(60);
+    const [upper] = SpriteHandler.extractOAMWithImages(direct);
+
+    const { PNG } = require('pngjs');
+    const viaSession = PNG.sync.read(
+      fs.readFileSync(path.join(cwd, 'out', 'oam', 'sprite_00.png'))
+    );
+
+    // Reconstruct what the in-process run would have written.
+    expect(viaSession.width).toBe(upper.width);
+    expect(viaSession.height).toBe(upper.height);
+
+    let opaque = 0;
+    for (let i = 0; i < upper.renderedPixels.length; i++) {
+      const alpha = viaSession.data[i * 4 + 3];
+      expect(alpha).toBe(upper.renderedPixels[i] === 0 ? 0 : 255);
+      if (alpha) opaque += 1;
+    }
+    expect(opaque).toBeGreaterThan(0);
+  });
+});

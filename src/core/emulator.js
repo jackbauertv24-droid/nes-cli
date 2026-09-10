@@ -134,6 +134,12 @@ class Emulator {
     this.currentROM = state.rom;
     this.frameCount = state.frameCount;
     this.nes.fromJSON(state.state);
+
+    // jsnes state restores tile memory but says nothing about how the frame
+    // reached it. Reseed the recorder from the restored contents, so a caller
+    // asking for a given screen row gets the restored tiles rather than
+    // whatever this process happened to boot with.
+    this.chrRecorder.reset();
   }
 
   getCPUState() {

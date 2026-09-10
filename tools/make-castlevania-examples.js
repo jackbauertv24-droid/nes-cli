@@ -81,7 +81,8 @@ new SpritesCommand(poses).execute({
   outputDir: out('sprites'),
   frames: DEMO_END - DEMO_START - 16,
   minY: PLAYFIELD_TOP,
-  byPalette: true
+  byPalette: true,
+  preview: true
 });
 
 // Animation clips over the same stretch. Tracking has to cope with Castlevania

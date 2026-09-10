@@ -31,11 +31,17 @@ node bin/nes-cli.js run 300
 node bin/nes-cli.js screenshot title.png
 ```
 
-`load` writes a session file (`.nes-cli-session.json`) holding the ROM path and
-emulator state; later commands restore it, act, and write it back. That costs a
-serialise per command, so `script` and `repl` are faster when you have more
-than a couple of steps. Use `--session <file>` to run several sessions side by
-side.
+`load` writes a session file (`.nes-cli-session.json`) holding the ROM path, the
+emulator state, the rendered screen and the frame's tile-memory record; later
+commands restore all of it, act, and write it back. That costs a serialise per
+command, so `script` and `repl` are faster when you have more than a couple of
+steps. Use `--session <file>` to run several sessions side by side.
+
+One thing does not survive a session hop: **audio**. jsnes serialises the CPU,
+mapper and PPU but not the sound unit, so a capture taken after a restore starts
+from an APU in its power-on state. The result is real audio of the right length,
+but not identical to the same capture made in one process. If that matters, take
+audio inside a single `script` run.
 
 ## Commands
 
@@ -107,7 +113,9 @@ nes-cli sprites --format animation --frames 260 --output ./sprites
   tiling them all into uniform cells with a transparent background - each pose
   centred and sat on the bottom of its cell, so feet line up across the row.
 
-  Add `--by-palette` to get a sheet per sprite palette as well. Games nearly
+  Add `--preview` for a `contact-sheet.png` drawn on a checkerboard, which is
+  the quickest way to check that transparency came out right. Add
+  `--by-palette` to get a sheet per sprite palette as well. Games nearly
   always give each character its own palette, so in practice that is one sheet
   per character:
 
@@ -278,3 +286,28 @@ node tools/make-castlevania-examples.js /path/to/castlevania.nes
 `examples/` is SMB3 - MMC3, CHR-ROM, bank switching mid-frame.
 `examples-castlevania/` is Castlevania - UNROM, CHR-RAM, characters rotated
 through the sprite table every frame. They exercise almost opposite paths.
+
+Those scripts are convenience wrappers, not privileged ones: they call the same
+commands documented above with the same options, and exist only to record the
+frame numbers and button presses that reach each scene. Everything in both
+example folders can be produced from the command line. The Castlevania set, for
+instance, is:
+
+```bash
+nes-cli load castlevania.nes --frames 400
+nes-cli screenshot cv_title.png
+
+nes-cli load castlevania.nes --frames 1600
+nes-cli screenshot cv_whip.png
+nes-cli sprites --format oam --individual --output ./sprites
+nes-cli sprites --format chr --at-row 120 --output ./sprites
+
+nes-cli load castlevania.nes --frames 711
+nes-cli sprites --format metasprite --frames 1377 --min-y 56 --by-palette --preview --output ./sprites
+
+nes-cli load castlevania.nes --frames 711
+nes-cli sprites --format animation --frames 1377 --min-y 56 --output ./sprites
+```
+
+That sequence reproduces the committed files byte for byte, audio excepted for
+the reason given under Quick start.

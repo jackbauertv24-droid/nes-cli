@@ -22,58 +22,12 @@ const ASCIIHandler = require('../src/formats/image/ascii');
 const RecordCommand = require('../src/commands/record');
 const AudioCommand = require('../src/commands/audio');
 const SpritesCommand = require('../src/commands/sprites');
-const { PNG } = require('pngjs');
 
 const romPath = process.argv[2];
 if (!romPath || !fs.existsSync(romPath)) {
   console.error('Usage: node tools/make-examples.js <path to smb3.nes>');
   console.error('       node tools/make-castlevania-examples.js <path to castlevania.nes>');
   process.exit(1);
-}
-
-/**
- * Tile every extracted metasprite onto one checkerboard sheet, scaled up.
- * The checkerboard is there so transparency is visible rather than implied.
- */
-function contactSheet(dir, scale = 3, pad = 6) {
-  const meta = JSON.parse(fs.readFileSync(path.join(dir, 'metasprites.json'), 'utf8'));
-  if (meta.length === 0) return null;
-
-  const images = meta.map((m) => PNG.sync.read(fs.readFileSync(path.join(dir, m.filename))));
-  const width = images.reduce((total, img) => total + img.width * scale + pad, pad);
-  const height = Math.max(...images.map((img) => img.height)) * scale + pad * 2;
-  const sheet = new PNG({ width, height });
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const shade = ((x >> 3) + (y >> 3)) % 2 ? 215 : 180;
-      const i = (y * width + x) * 4;
-      sheet.data[i] = shade;
-      sheet.data[i + 1] = shade;
-      sheet.data[i + 2] = shade;
-      sheet.data[i + 3] = 255;
-    }
-  }
-
-  let originX = pad;
-  for (const img of images) {
-    for (let y = 0; y < img.height * scale; y++) {
-      for (let x = 0; x < img.width * scale; x++) {
-        const src = (Math.floor(y / scale) * img.width + Math.floor(x / scale)) * 4;
-        if (img.data[src + 3] === 0) continue;
-        const dst = ((y + pad) * width + originX + x) * 4;
-        sheet.data[dst] = img.data[src];
-        sheet.data[dst + 1] = img.data[src + 1];
-        sheet.data[dst + 2] = img.data[src + 2];
-        sheet.data[dst + 3] = 255;
-      }
-    }
-    originX += img.width * scale + pad;
-  }
-
-  const outPath = path.join(dir, '..', 'contact-sheet.png');
-  fs.writeFileSync(outPath, PNG.sync.write(sheet));
-  return outPath;
 }
 
 const OUT = path.join(__dirname, '..', 'examples');
@@ -105,7 +59,8 @@ new SpritesCommand(demo).execute({
   frames: 340,
   // Mario is palette 0 and Luigi palette 1 here, so this splits the poses into
   // a sheet per character.
-  byPalette: true
+  byPalette: true,
+  preview: true
 });
 
 // A frame from the middle of the routine, with a character mid-jump. This uses
@@ -127,7 +82,6 @@ demoFrame.loadROM(romPath);
 demoFrame.run(250);
 PNGHandler.save(demoFrame.getFrameBuffer(), out('smb3_title_demo.png'));
 
-contactSheet(out('sprites-title-demo/metasprites'));
 console.log('title demo captured');
 
 // ---------------------------------------------------------------------------
@@ -180,12 +134,11 @@ emulator.buttonDown(1, 'RIGHT');
 new SpritesCommand(emulator).execute({
   format: 'metasprite',
   outputDir: out('sprites'),
-  frames: 150
+  frames: 150,
+  preview: true
 });
 emulator.buttonUp(1, 'RIGHT');
 emulator.run(60);
-
-contactSheet(out('sprites/metasprites'));
 
 new RecordCommand(emulator).execute({
   format: 'gif',

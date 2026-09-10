@@ -328,7 +328,7 @@ class MetaspriteAnalyzer {
    * time. Putting them in animation order means tracking a character across
    * frames, which is a different job - see --format animation.
    */
-  static saveSheet(metasprites, outputPath, columns = 8) {
+  static saveSheet(metasprites, outputPath, columns = 8, options = {}) {
     if (metasprites.length === 0) {
       return null;
     }
@@ -340,6 +340,21 @@ class MetaspriteAnalyzer {
 
     const sheet = new PNG({ width: perRow * cellW, height: rows * cellH });
     sheet.data.fill(0);
+
+    // A preview sheet is drawn on a checkerboard so the transparency can be
+    // seen rather than merely trusted. Asset sheets stay transparent.
+    if (options.checkerboard) {
+      for (let y = 0; y < sheet.height; y++) {
+        for (let x = 0; x < sheet.width; x++) {
+          const shade = ((x >> 3) + (y >> 3)) % 2 ? 215 : 180;
+          const i = (y * sheet.width + x) * 4;
+          sheet.data[i] = shade;
+          sheet.data[i + 1] = shade;
+          sheet.data[i + 2] = shade;
+          sheet.data[i + 3] = 255;
+        }
+      }
+    }
 
     metasprites.forEach((meta, i) => {
       const originX = (i % perRow) * cellW + Math.floor((cellW - meta.width) / 2);

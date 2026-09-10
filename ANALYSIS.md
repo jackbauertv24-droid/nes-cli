@@ -244,7 +244,29 @@ distinct poses. SMB3 improved too, which is the useful confirmation: Luigi had
 been split into two clips of 158 and 83 frames by exactly this kind of gap, and
 is now a single clip of 241.
 
-### 11. Smaller defects
+### 11. Save states lost the frame's tile record
+
+Found while checking whether the example sets could be reproduced from the
+command line rather than from the generator scripts. They could not, quite: two
+of ninety-four files came out different.
+
+jsnes serialises the CPU, mapper and PPU, which restores tile *memory* but says
+nothing about how the frame arrived at it. The recorder that answers "what were
+the tiles on screen row N" was therefore rebuilt from whatever the restoring
+process had last stepped - for a fresh process, its own boot frame. Measured
+against a restored Castlevania state, 476 of 512 tiles read wrong.
+
+The session file now carries the recorder's segments alongside the framebuffer,
+and `setState` reseeds the recorder from restored memory when a state has no
+record of its own. After the fix, 93 of 94 files match byte for byte.
+
+The last one is audio, and it is a limitation rather than a defect: jsnes does
+not serialise the sound unit at all, so a capture taken after a session restore
+begins with an APU in its power-on state. The audio is real and the right
+length, but not identical to the same capture made in one process. Documented
+in the README; take audio inside a single `script` run if it matters.
+
+### 12. Smaller defects
 
 | Defect | Effect |
 |---|---|
@@ -259,7 +281,7 @@ is now a single clip of 241.
 | Save-state "slots" held in an in-memory `Map` | always empty, since every command is a new process |
 | Metasprite filter hardcoded `screenY > 140 && palette in {0,1}` | SMB3 title-screen tuning baked into library code |
 
-### 12. One trap that was not a bug, and now cannot become one
+### 13. One trap that was not a bug, and now cannot become one
 
 `emulator.js` called `ppu.palTable.loadDefaultPalette()` after every ROM load.
 jsnes deliberately leaves that call commented out in its own constructor,
@@ -344,6 +366,19 @@ assembler in `tools/asm6502.js`:
 Regenerate with `npm run fixtures`.
 
 ---
+
+## Reproducibility
+
+Both example sets are produced by the documented commands with the documented
+options; `tools/make-examples.js` and `tools/make-castlevania-examples.js` are
+convenience wrappers that exist to record the frame numbers and button presses
+which reach each scene. Nothing in either folder needs a code path the command
+line cannot reach - the last one that did, the checkerboard contact sheet, is
+now `--preview`.
+
+This is checked rather than assumed: running the Castlevania sequence by hand
+reproduces 93 of the 94 committed files byte for byte, the exception being audio
+for the reason in finding 11.
 
 ## Still to do
 

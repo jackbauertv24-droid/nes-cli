@@ -60,6 +60,22 @@ enemies and items, which appear briefly and so have little to show.
 is CHR-RAM, those sheets are the tiles the *game uploaded*, not anything read
 from the cartridge.
 
+## Reproducing this without the generator
+
+The generator is a convenience wrapper, not a privileged one. The same files
+come out of the documented commands:
+
+```bash
+nes-cli load castlevania.nes --frames 711
+nes-cli sprites --format metasprite --frames 1377 --min-y 56 --by-palette --preview --output ./sprites
+
+nes-cli load castlevania.nes --frames 711
+nes-cli sprites --format animation --frames 1377 --min-y 56 --output ./sprites
+```
+
+Audio is the one thing that will not match a generator run byte for byte, because
+jsnes does not serialise its sound unit across a save state. See the README.
+
 ## A caveat on the tracking
 
 Since slot identity is useless here, characters are followed by position. That

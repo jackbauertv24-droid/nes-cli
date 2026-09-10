@@ -24,7 +24,7 @@ character sprites in the game, and it needs nothing but patience.
 | `sprites-title-demo/metasprites/sheet-palette0.png` | Mario's poses |
 | `sprites-title-demo/metasprites/sheet-palette1.png` | Luigi's poses |
 | `sprites-title-demo/metasprites/` | The same 15 poses as individual PNGs, plus `metasprites.json` |
-| `sprites-title-demo/contact-sheet.png` | A preview of them all on a checkerboard |
+| `sprites-title-demo/metasprites/contact-sheet.png` | A preview of them all on a checkerboard (`--preview`) |
 | `sprites-title-demo/animations/clip-000/` | Mario's animation: 28 cells in order, with durations |
 | `sprites-title-demo/animations/clip-001/` | Luigi's, 18 cells |
 | `sprites-title-demo/animations/clip-002/` | Luigi again after he leaves and returns |
