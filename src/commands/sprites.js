@@ -1,10 +1,9 @@
 const SpriteHandler = require('../formats/image/spritesheet');
 const MetaspriteAnalyzer = require('../formats/image/metasprite');
 const FileUtils = require('../utils/file');
-const chalk = require('chalk');
-const fs = require('fs');
-const path = require('path');
 const { JSONHandler } = require('../formats/data/json-csv');
+const chalk = require('chalk');
+const path = require('path');
 
 class SpritesCommand {
   constructor(emulator) {
@@ -14,144 +13,99 @@ class SpritesCommand {
   execute(options = {}) {
     const format = options.format || 'all';
     const outputDir = options.outputDir || './sprites';
-    const individual = options.individual || false;
-    const frames = options.frames || 60;
-    const maxGap = options.maxGap || 16;
-    const minSprites = options.minSprites || 2;
-
-    console.log(chalk.blue('Extracting sprites...'));
 
     switch (format) {
       case 'chr':
-        return this.extractCHR(`${outputDir}/chr`, individual);
+        return this.extractPatternTables(path.join(outputDir, 'chr'), options.individual);
       case 'oam':
-        return this.extractOAM(outputDir, individual);
+        return this.extractOAM(path.join(outputDir, 'oam'), options.individual);
       case 'metasprite':
-        return this.extractMetasprites(outputDir, frames, maxGap, minSprites);
+        return this.extractMetasprites(path.join(outputDir, 'metasprites'), options);
       case 'animation':
-        return this.extractAnimations(outputDir, frames * 2, maxGap, minSprites);
+        console.error(
+          chalk.red('Animation extraction is not implemented yet. Use --format metasprite.')
+        );
+        return false;
       case 'all':
       default:
-        this.extractCHR(`${outputDir}/chr`, individual);
-        this.extractOAM(`${outputDir}/oam`, individual);
-        console.log(chalk.green(`Sprites extracted to: ${outputDir}`));
+        this.extractPatternTables(path.join(outputDir, 'chr'), options.individual);
+        this.extractOAM(path.join(outputDir, 'oam'), options.individual);
         return outputDir;
     }
   }
 
-  extractCHR(outputDir, individual) {
+  /**
+   * Dump both pattern tables as they are banked *right now*.
+   *
+   * The output is a snapshot, not the whole cartridge: a mapper that swaps CHR
+   * banks will show different tiles at a different moment. Run some frames to
+   * reach the scene you care about before extracting.
+   */
+  extractPatternTables(outputDir, individual) {
     FileUtils.ensureDir(outputDir);
-    
-    if (!this.emulator.currentROM) {
-      console.error(chalk.red('No ROM loaded'));
-      return false;
-    }
+    const results = SpriteHandler.savePatternTables(this.emulator, outputDir, individual);
 
-    const romData = fs.readFileSync(this.emulator.currentROM);
-    const tiles = SpriteHandler.extractCHRTiles(romData, 0);
-    const palettes = this.emulator.getAllSpritePalettes();
-    
-    const results = SpriteHandler.saveCHRTiles(tiles, palettes, outputDir, individual);
-    
-    console.log(chalk.green(`CHR tiles: ${outputDir}`));
-    console.log(chalk.gray(`  256 tiles extracted`));
-    console.log(chalk.gray(`  Spritesheets: 5 (gray + 4 palettes)`));
-    if (individual) {
-      console.log(chalk.gray(`  Individual files: 1,280 PNGs`));
-    }
-    
+    console.log(chalk.green(`Pattern tables: ${outputDir}`));
+    console.log(chalk.gray(`  512 tiles (2 tables x 256), ${results.length} sheets`));
+    console.log(chalk.gray(`  Snapshot of frame ${this.emulator.frameCount}`));
     return results;
   }
 
   extractOAM(outputDir, individual) {
     FileUtils.ensureDir(outputDir);
-    
-    const oamSprites = SpriteHandler.extractOAMWithImages(this.emulator);
-    const visibleSprites = oamSprites.filter(s => s.visible);
-    
-    const metadata = oamSprites.map(s => ({
-      id: s.id,
-      x: s.x,
-      y: s.y,
-      tile: s.tile,
-      attributes: s.attributes,
-      palette: s.palette,
-      priority: s.priority,
-      flipHorizontal: s.flipHorizontal,
-      flipVertical: s.flipVertical,
-      visible: s.visible
-    }));
-    
-    JSONHandler.save(metadata, path.join(outputDir, 'oam.json'));
-    
-    SpriteHandler.saveOAMSprites(oamSprites, outputDir, individual);
-    
+
+    const sprites = SpriteHandler.extractOAMWithImages(this.emulator);
+    const visible = sprites.filter((s) => s.visible);
+
+    JSONHandler.save(
+      sprites.map(({ renderedPixels, paletteColors, ...meta }) => meta),
+      path.join(outputDir, 'oam.json')
+    );
+    SpriteHandler.saveOAMSprites(sprites, outputDir, individual);
+
     console.log(chalk.green(`OAM sprites: ${outputDir}`));
-    console.log(chalk.gray(`  ${visibleSprites.length} visible sprites`));
-    console.log(chalk.gray(`  Metadata: oam.json`));
-    if (individual) {
-      console.log(chalk.gray(`  Individual files: ${visibleSprites.length} PNGs`));
-    }
-    
+    console.log(
+      chalk.gray(
+        `  ${visible.length} visible of 64, ` +
+          `${this.emulator.is8x16Sprites() ? '8x16' : '8x8'} mode`
+      )
+    );
     return outputDir;
   }
 
-  extractMetasprites(outputDir, frames = 60, maxGap = 16, minSprites = 2) {
+  extractMetasprites(outputDir, options = {}) {
     FileUtils.ensureDir(outputDir);
-    
-    console.log(chalk.blue(`Running ${frames} frames to analyze metasprites...`));
-    
-    const analyzer = new MetaspriteAnalyzer(this.emulator);
-    const metasprites = analyzer.analyzeMetasprites(frames, maxGap, minSprites);
-    
-    if (metasprites.length === 0) {
-      console.log(chalk.yellow('No metasprites found. Try running more frames or adjusting parameters.'));
+
+    const frames = options.frames || 60;
+    const analyzer = new MetaspriteAnalyzer(this.emulator, {
+      minY: options.minY,
+      maxY: options.maxY,
+      palettes: options.palettes
+    });
+
+    console.log(chalk.blue(`Analysing ${frames} frames for metasprites...`));
+
+    const found = analyzer.analyzeMetasprites(
+      frames,
+      options.maxGap == null ? 8 : options.maxGap,
+      options.minSprites == null ? 2 : options.minSprites
+    );
+
+    if (found.length === 0) {
+      console.log(
+        chalk.yellow(
+          'No recurring metasprites found. Try more frames, a larger --max-gap, ' +
+            'or check that sprites are on screen (nes-cli dump oam).'
+        )
+      );
       return null;
     }
-    
-    const bestMetasprites = analyzer.extractBestMetasprites(metasprites, 20);
-    
-    if (bestMetasprites.length === 0) {
-      console.log(chalk.yellow('No valid metasprites to extract.'));
-      return null;
-    }
-    
-    analyzer.saveMetasprites(bestMetasprites, outputDir);
-    
+
+    const best = analyzer.extractBestMetasprites(found, options.maxCount || 20);
+    analyzer.saveMetasprites(best, outputDir);
+
     console.log(chalk.green(`Metasprites: ${outputDir}`));
-    console.log(chalk.gray(`  ${bestMetasprites.length} metasprites extracted`));
-    console.log(chalk.gray(`  Metadata: metasprites.json`));
-    
-    return outputDir;
-  }
-
-  extractAnimations(outputDir, frames = 120, maxGap = 16, minSprites = 2) {
-    FileUtils.ensureDir(outputDir);
-    
-    console.log(chalk.blue(`Running ${frames} frames to track animations...`));
-    
-    const analyzer = new MetaspriteAnalyzer(this.emulator);
-    const animations = analyzer.trackAnimations(frames, maxGap, minSprites);
-    
-    if (animations.length === 0) {
-      console.log(chalk.yellow('No animations found. Try running more frames or adjusting parameters.'));
-      return null;
-    }
-    
-    const extractedAnimations = analyzer.extractAnimations(animations, 10);
-    
-    if (extractedAnimations.length === 0) {
-      console.log(chalk.yellow('No valid animations to extract.'));
-      return null;
-    }
-    
-    analyzer.saveAnimations(extractedAnimations, outputDir);
-    
-    console.log(chalk.green(`Animations: ${outputDir}`));
-    console.log(chalk.gray(`  ${extractedAnimations.length} animations extracted`));
-    console.log(chalk.gray(`  Each animation has spritesheet + frame PNGs`));
-    console.log(chalk.gray(`  Metadata: animations.json`));
-    
+    console.log(chalk.gray(`  ${best.length} of ${found.length} candidates written`));
     return outputDir;
   }
 }

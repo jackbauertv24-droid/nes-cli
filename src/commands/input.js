@@ -1,71 +1,80 @@
 const chalk = require('chalk');
+const Emulator = require('../core/emulator');
+
+// A single-frame tap is unreliable: many games poll the controller once per
+// frame during NMI, and a press that goes down and up between two calls to
+// frame() can be missed entirely. Three frames is comfortably inside the
+// shortest human tap and is seen by every polling scheme.
+const DEFAULT_PRESS_FRAMES = 3;
 
 class InputCommand {
   constructor(emulator) {
     this.emulator = emulator;
-    this.validButtons = ['A', 'B', 'SELECT', 'START', 'UP', 'DOWN', 'LEFT', 'RIGHT'];
   }
 
   execute(options = {}) {
+    if (options.sequence) {
+      return this.executeSequence(options.sequence, options);
+    }
     if (options.button) {
       return this.pressButton(options.button, options);
     }
 
-    if (options.sequence) {
-      return this.executeSequence(options.sequence, options);
-    }
-
-    console.error(chalk.red('No input specified. Use --button or --sequence'));
+    console.error(chalk.red('No input specified. Give a button or --sequence.'));
     return false;
   }
 
+  /** Convert --duration/--hold-frames into a frame count. */
+  holdFrames(options) {
+    if (options.holdFrames) {
+      return Math.max(1, parseInt(options.holdFrames, 10));
+    }
+    if (options.duration) {
+      return Math.max(1, Math.round((parseInt(options.duration, 10) / 1000) * Emulator.NTSC_FPS));
+    }
+    return DEFAULT_PRESS_FRAMES;
+  }
+
   pressButton(button, options = {}) {
-    button = button.toUpperCase();
-    
-    if (!this.validButtons.includes(button)) {
-      console.error(chalk.red(`Invalid button: ${button}. Valid: ${this.validButtons.join(', ')}`));
+    let name;
+    try {
+      name = Emulator.normalizeButton(button);
+    } catch (error) {
+      console.error(chalk.red(error.message));
       return false;
     }
 
-    const player = parseInt(options.player) || 1;
-    
-    if (options.hold) {
-      const duration = parseInt(options.duration) || 500;
-      const frames = Math.floor(duration / 16.67); // ~60fps
-      
-      console.log(chalk.blue(`Holding ${button} for ${duration}ms (${frames} frames)...`));
-      this.emulator.buttonDown(player, button);
-      this.emulator.run(frames);
-      this.emulator.buttonUp(player, button);
-      console.log(chalk.green(`Released ${button}`));
-    } else {
-      console.log(chalk.blue(`Pressing ${button}...`));
-      this.emulator.buttonDown(player, button);
-      this.emulator.run(1);
-      this.emulator.buttonUp(player, button);
-      console.log(chalk.green(`Pressed ${button}`));
-    }
+    const player = parseInt(options.player, 10) || 1;
+    const frames = this.holdFrames(options);
 
+    this.emulator.buttonDown(player, name);
+    this.emulator.run(frames);
+    this.emulator.buttonUp(player, name);
+    // Let go for a frame so consecutive presses of the same button register as
+    // two presses rather than one long hold.
+    this.emulator.run(1);
+
+    console.log(chalk.green(`Pressed ${name} for ${frames} frame(s)`));
     return true;
   }
 
-  async executeSequence(sequence, options = {}) {
-    const buttons = sequence.split(',').map(b => b.trim().toUpperCase());
-    const delay = parseInt(options.delay) || 100;
-    const delayFrames = Math.floor(delay / 16.67);
+  executeSequence(sequence, options = {}) {
+    const buttons = String(sequence)
+      .split(',')
+      .map((b) => b.trim())
+      .filter(Boolean);
+    const gapFrames = options.delay
+      ? Math.max(0, Math.round((parseInt(options.delay, 10) / 1000) * Emulator.NTSC_FPS))
+      : 6;
 
-    console.log(chalk.blue(`Executing sequence: ${buttons.join(' -> ')}`));
+    console.log(chalk.blue(`Sequence: ${buttons.join(' -> ')}`));
 
     for (const button of buttons) {
-      if (!this.validButtons.includes(button)) {
-        console.error(chalk.red(`Invalid button in sequence: ${button}`));
-        continue;
+      if (!this.pressButton(button, options)) {
+        return false;
       }
-
-      this.pressButton(button, { player: options.player });
-      
-      if (delay > 0) {
-        this.emulator.run(delayFrames);
+      if (gapFrames > 0) {
+        this.emulator.run(gapFrames);
       }
     }
 

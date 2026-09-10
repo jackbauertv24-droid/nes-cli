@@ -55,3 +55,20 @@ sprites/chr/
 - Palette[3] = black (sprite outline)
 - Both are RGB(0,0,0) - can't distinguish by color matching
 - Sprite extractions keep all pixels including black outline
+---
+
+## Note: these outputs predate the v2 rewrite
+
+Everything in this folder was produced by the original pipeline, which had two
+defects that are visible here:
+
+- **Controller input never reached the emulator**, so the emulator could not be
+  driven past the title screen. `smb3_gameplay.png` is in fact the title
+  screen, and the character extractions all come from the attract-mode demo.
+- **Sprites were scraped from the rendered framebuffer**, so the extractions
+  carry the background with them and have no transparency.
+  `sprites/oam/spritesheet.png` is worse than that - it laid 16-pixel sprites
+  into 8-pixel grid cells, so the rows overwrite each other.
+
+Both are fixed; see `ANALYSIS.md`. These files are kept for comparison and will
+be regenerated from real gameplay.

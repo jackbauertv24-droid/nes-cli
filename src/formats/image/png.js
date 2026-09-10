@@ -1,79 +1,50 @@
 const { PNG } = require('pngjs');
 const fs = require('fs');
+const { unpackRGB } = require('../../core/color');
 
 class PNGHandler {
-  static unpackRGB(packed) {
-    const r = (packed >> 16) & 0xFF;
-    const g = (packed >> 8) & 0xFF;
-    const b = packed & 0xFF;
-    return [r, g, b];
-  }
-
   static frameToPNG(frameBuffer, width = 256, height = 240) {
     const png = new PNG({ width, height });
-    
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x;
-        const packedColor = frameBuffer[idx] || 0;
-        const [r, g, b] = this.unpackRGB(packedColor);
-        const pngIdx = idx * 4;
-        
-        png.data[pngIdx] = r;
-        png.data[pngIdx + 1] = g;
-        png.data[pngIdx + 2] = b;
-        png.data[pngIdx + 3] = 255;
-      }
+
+    for (let i = 0; i < width * height; i++) {
+      const [r, g, b] = unpackRGB(frameBuffer[i] || 0);
+      const idx = i * 4;
+      png.data[idx] = r;
+      png.data[idx + 1] = g;
+      png.data[idx + 2] = b;
+      png.data[idx + 3] = 255;
     }
-    
+
     return PNG.sync.write(png);
   }
 
   static save(frameBuffer, filePath, width = 256, height = 240) {
-    const buffer = this.frameToPNG(frameBuffer, width, height);
-    fs.writeFileSync(filePath, buffer);
+    fs.writeFileSync(filePath, this.frameToPNG(frameBuffer, width, height));
     return filePath;
   }
 
-  static saveWithPalette(frameBuffer, palTable, filePath, width = 256, height = 240) {
-    return this.save(frameBuffer, filePath, width, height);
-  }
-
-  static spriteToPNG(spriteData, width, height, palette) {
-    const png = new PNG({ width, height });
-    
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const pixel = spriteData[y * width + x];
-        const color = palette[pixel] || [0, 0, 0];
-        const idx = (y * width + x) * 4;
-        
-        png.data[idx] = color[0];
-        png.data[idx + 1] = color[1];
-        png.data[idx + 2] = color[2];
-        png.data[idx + 3] = pixel === 0 ? 0 : 255;
-      }
-    }
-    
-    return PNG.sync.write(png);
-  }
-
+  /**
+   * Write a sprite from NES colour indices.
+   *
+   * Index 0 is the PPU's transparency slot, so it is written as a fully
+   * transparent pixel rather than as palette[0]. This is what makes extracted
+   * sprites usable: previously every pixel was opaque, which meant the black
+   * used for an outline (index 3) and the black behind the sprite (index 0)
+   * were indistinguishable in the output.
+   */
   static saveSprite(pixelData, filePath, palette, width = 8, height = 8) {
     const png = new PNG({ width, height });
-    
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const pixel = pixelData[y * width + x];
-        const [r, g, b] = palette[pixel] || [0, 0, 0];
-        const idx = (y * width + x) * 4;
-        
-        png.data[idx] = r;
-        png.data[idx + 1] = g;
-        png.data[idx + 2] = b;
-        png.data[idx + 3] = pixel === 0 ? 0 : 255;
-      }
+
+    for (let i = 0; i < width * height; i++) {
+      const pixel = pixelData[i] || 0;
+      const [r, g, b] = palette[pixel] || [0, 0, 0];
+      const idx = i * 4;
+      png.data[idx] = r;
+      png.data[idx + 1] = g;
+      png.data[idx + 2] = b;
+      png.data[idx + 3] = pixel === 0 ? 0 : 255;
     }
-    
+
     fs.writeFileSync(filePath, PNG.sync.write(png));
     return filePath;
   }

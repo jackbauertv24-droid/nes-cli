@@ -1,49 +1,58 @@
 const jsnes = require('jsnes');
 const fs = require('fs');
+const { unpackRGB } = require('./color');
+
+// The NES does not run at exactly 60Hz. Using the real rate keeps
+// millisecond-to-frame conversions honest over long captures.
+const NTSC_FPS = 60.0988;
+
+// jsnes generates audio at whatever rate it is constructed with, and defaults
+// to 48000. Anything that writes a WAV header has to agree with this value or
+// the file plays back at the wrong pitch.
+const DEFAULT_SAMPLE_RATE = 48000;
+
+const BUTTONS = {
+  A: jsnes.Controller.BUTTON_A,
+  B: jsnes.Controller.BUTTON_B,
+  SELECT: jsnes.Controller.BUTTON_SELECT,
+  START: jsnes.Controller.BUTTON_START,
+  UP: jsnes.Controller.BUTTON_UP,
+  DOWN: jsnes.Controller.BUTTON_DOWN,
+  LEFT: jsnes.Controller.BUTTON_LEFT,
+  RIGHT: jsnes.Controller.BUTTON_RIGHT
+};
 
 class Emulator {
-  constructor() {
+  constructor(options = {}) {
+    this.sampleRate = options.sampleRate || DEFAULT_SAMPLE_RATE;
     this.nes = new jsnes.NES({
       onFrame: this.onFrame.bind(this),
-      onAudioSample: this.onAudioSample.bind(this)
+      onAudioSample: this.onAudioSample.bind(this),
+      sampleRate: this.sampleRate
     });
     this.frameBuffer = null;
-    this.palTable = null;
     this.audioBuffer = [];
-    this.running = false;
     this.frameCount = 0;
     this.currentROM = null;
-    this.romData = null;
-    this.chrOffset = 0;
   }
 
   onFrame(frameBuffer) {
     this.frameBuffer = frameBuffer;
-    this.palTable = this.nes.ppu.palTable.curTable;
     this.frameCount++;
   }
 
-  onAudioSample(left, right) {
+  onAudioSample(left) {
     this.audioBuffer.push(left);
   }
 
-  loadROM(path) {
-    const data = fs.readFileSync(path);
-    this.romData = data;
-    
-    // Calculate CHR offset from iNES header
-    const header = data.slice(0, 16);
-    const prgSize = header[4] * 16384;
-    const hasTrainer = (header[6] & 0x04) !== 0;
-    const trainerSize = hasTrainer ? 512 : 0;
-    this.chrOffset = 16 + trainerSize + prgSize;
-    
+  loadROM(romPath) {
+    const data = fs.readFileSync(romPath);
     this.nes.loadROM(data.toString('binary'));
-    // Fix palette after ROM loads (jsnes resets to NTSC on load)
-    this.nes.ppu.palTable.loadDefaultPalette();
-    this.currentROM = path;
+    this.currentROM = romPath;
     this.frameCount = 0;
     this.audioBuffer = [];
+    // Render one frame so callers always have a framebuffer to work with.
+    this.nes.frame();
     return true;
   }
 
@@ -62,12 +71,20 @@ class Emulator {
     }
   }
 
+  static normalizeButton(button) {
+    const name = String(button).toUpperCase();
+    if (!(name in BUTTONS)) {
+      throw new Error(`Unknown button "${button}". Valid: ${Object.keys(BUTTONS).join(', ')}`);
+    }
+    return name;
+  }
+
   buttonDown(player, button) {
-    this.nes.buttonDown(player, jsnes.Controller[button]);
+    this.nes.buttonDown(player, BUTTONS[Emulator.normalizeButton(button)]);
   }
 
   buttonUp(player, button) {
-    this.nes.buttonUp(player, jsnes.Controller[button]);
+    this.nes.buttonUp(player, BUTTONS[Emulator.normalizeButton(button)]);
   }
 
   getFrameBuffer() {
@@ -76,10 +93,6 @@ class Emulator {
 
   getNES() {
     return this.nes;
-  }
-
-  getPalTable() {
-    return this.palTable || this.nes.ppu.palTable.curTable;
   }
 
   getAudioBuffer() {
@@ -117,11 +130,13 @@ class Emulator {
 
   getPPUState() {
     return {
-      frame: this.nes.ppu.frame || 0,
+      frame: this.frameCount,
       scanline: this.nes.ppu.scanline,
       cycle: this.nes.ppu.curX,
       vramAddress: this.nes.ppu.vramAddress,
-      tempAddress: this.nes.ppu.vramTmpAddress
+      tempAddress: this.nes.ppu.vramTmpAddress,
+      spriteSize: this.is8x16Sprites() ? '8x16' : '8x8',
+      spritePatternTable: this.getSpritePatternTable()
     };
   }
 
@@ -129,70 +144,89 @@ class Emulator {
     return this.nes.ppu.spriteMem || new Uint8Array(256);
   }
 
-  getSpriteData() {
-    const sprites = [];
-    for (let i = 0; i < 64; i++) {
-      sprites.push({
-        id: i,
-        x: this.nes.ppu.sprX[i] || 0,
-        y: this.nes.ppu.sprY[i] || 0,
-        tile: this.nes.ppu.sprTile[i] || 0,
-        attributes: this.nes.ppu.sprCol[i] || 0
-      });
-    }
-    return sprites;
-  }
+  /**
+   * Read a tile out of the PPU's *live* pattern tables.
+   *
+   * This is the key difference from reading CHR-ROM at a file offset. Mappers
+   * that bank-switch CHR (MMC3, and most cartridges past the earliest ones)
+   * copy the active bank into ppu.vramMem on every switch, so this reflects
+   * what the PPU is actually drawing at this instant. Reading the ROM file
+   * instead gives whichever bank happened to be loaded first, which is why
+   * tile numbers appeared to "change meaning" during gameplay. It also works
+   * for CHR-RAM games, which have no CHR data in the file at all.
+   *
+   * @param table 0 for $0000, 1 for $1000.
+   * @param index 0-255 within that table.
+   * @returns 64 colour indices (0-3), row-major.
+   */
+  getPatternTile(table, index) {
+    const base = (table & 1) * 0x1000 + (index & 0xff) * 16;
+    const vram = this.nes.ppu.vramMem;
+    const pixels = new Array(64).fill(0);
 
-  getSpritePalette(paletteIndex) {
-    const baseAddress = 0x3F10 + (paletteIndex * 4);
-    const palette = [];
-    const palTable = this.nes.ppu.palTable.curTable;
-    for (let i = 0; i < 4; i++) {
-      const colorIndex = this.nes.ppu.vramMem[baseAddress + i] & 63;
-      const rgb = palTable[colorIndex] || 0;
-      palette.push([
-        (rgb >> 16) & 0xFF,
-        (rgb >> 8) & 0xFF,
-        rgb & 0xFF
-      ]);
+    for (let y = 0; y < 8; y++) {
+      const lowByte = vram[base + y] || 0;
+      const highByte = vram[base + y + 8] || 0;
+      for (let x = 0; x < 8; x++) {
+        const bit = 7 - x;
+        pixels[y * 8 + x] = (((highByte >> bit) & 1) << 1) | ((lowByte >> bit) & 1);
+      }
     }
-    return palette;
-  }
 
-  getAllSpritePalettes() {
-    return [0, 1, 2, 3].map(i => this.getSpritePalette(i));
+    return pixels;
   }
 
   is8x16Sprites() {
     return this.nes.ppu.f_spriteSize === 1;
   }
 
-  getTilePixelData(tileIndex) {
-    // Read directly from CHR ROM (jsnes ptTile.pix is unreliable)
-    if (!this.romData || this.chrOffset === null) {
-      return new Array(64).fill(0);
+  /**
+   * Which pattern table 8x8 sprites come from (PPUCTRL bit 3).
+   * In 8x16 mode this is ignored: bit 0 of each tile byte selects the table.
+   */
+  getSpritePatternTable() {
+    return this.nes.ppu.f_spPatternTable === 1 ? 1 : 0;
+  }
+
+  /**
+   * Resolve one OAM tile byte to the pattern-table tiles it draws.
+   * @returns {{table: number, tiles: number[]}}
+   */
+  resolveSpriteTiles(tileByte) {
+    if (this.is8x16Sprites()) {
+      return { table: tileByte & 1, tiles: [tileByte & 0xfe, (tileByte & 0xfe) + 1] };
     }
-    
-    const tileOffset = this.chrOffset + (tileIndex * 16);
-    const pixelData = new Array(64).fill(0);
-    
-    if (tileOffset + 16 > this.romData.length) {
-      return pixelData;
+    return { table: this.getSpritePatternTable(), tiles: [tileByte & 0xff] };
+  }
+
+  /**
+   * The four colours of a sprite palette, as [r, g, b] triples.
+   *
+   * Entry 0 is the shared transparency slot: the NES draws nothing there, so
+   * callers must treat index 0 as transparent rather than as a colour. It is
+   * returned anyway (mirroring $3F00) for callers that want a matte.
+   */
+  getSpritePalette(paletteIndex) {
+    const baseAddress = 0x3f10 + (paletteIndex & 3) * 4;
+    const palTable = this.nes.ppu.palTable.curTable;
+    const palette = [];
+
+    for (let i = 0; i < 4; i++) {
+      const address = i === 0 ? 0x3f00 : baseAddress + i;
+      const colorIndex = this.nes.ppu.vramMem[address] & 63;
+      palette.push(unpackRGB(palTable[colorIndex] || 0));
     }
-    
-    for (let y = 0; y < 8; y++) {
-      const lowByte = this.romData[tileOffset + y];
-      const highByte = this.romData[tileOffset + y + 8];
-      
-      for (let x = 0; x < 8; x++) {
-        const bit = 7 - x;
-        const lowBit = (lowByte >> bit) & 1;
-        const highBit = (highByte >> bit) & 1;
-        pixelData[y * 8 + x] = (highBit << 1) | lowBit;
-      }
-    }
-    
-    return pixelData;
+
+    return palette;
+  }
+
+  getAllSpritePalettes() {
+    return [0, 1, 2, 3].map((i) => this.getSpritePalette(i));
+  }
+
+  getBackgroundColor() {
+    const palTable = this.nes.ppu.palTable.curTable;
+    return unpackRGB(palTable[this.nes.ppu.vramMem[0x3f00] & 63] || 0);
   }
 
   getMemory(start, length) {
@@ -203,5 +237,9 @@ class Emulator {
     return mem;
   }
 }
+
+Emulator.BUTTONS = BUTTONS;
+Emulator.NTSC_FPS = NTSC_FPS;
+Emulator.DEFAULT_SAMPLE_RATE = DEFAULT_SAMPLE_RATE;
 
 module.exports = Emulator;

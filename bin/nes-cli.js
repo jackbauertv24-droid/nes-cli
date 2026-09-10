@@ -3,7 +3,7 @@
 const { Command } = require('commander');
 const chalk = require('chalk');
 const fs = require('fs');
-const path = require('path');
+const Emulator = require('../src/core/emulator');
 const LoadCommand = require('../src/commands/load');
 const { RunCommand, StepCommand } = require('../src/commands/run');
 const ScreenshotCommand = require('../src/commands/screenshot');
@@ -16,278 +16,279 @@ const DumpCommand = require('../src/commands/dump');
 const REPLShell = require('../src/repl/shell');
 
 const program = new Command();
+const DEFAULT_SESSION = '.nes-cli-session.json';
 
 program
   .name('nes-cli')
-  .description('NES emulator CLI with headless mode, screen recording, sprite extraction, and audio capture')
-  .version('1.0.0');
+  .description('Headless NES emulator for the command line')
+  .version(require('../package.json').version)
+  .option('--session <file>', 'Session file used to carry emulator state between commands', DEFAULT_SESSION);
 
-let currentEmulator = null;
-
-function getEmulator() {
-  if (!currentEmulator) {
-    console.error(chalk.red('No ROM loaded. Use "load" command first.'));
-    process.exit(1);
-  }
-  return currentEmulator;
+/**
+ * Each invocation is a fresh process, so emulator state has to live on disk
+ * between commands. `load` writes the session; every other command reads it,
+ * does its work, and writes it back. Without this, `nes-cli load` followed by
+ * `nes-cli run` could never work - the second process had no emulator.
+ *
+ * Use `script` or `repl` to avoid the save/restore cost entirely.
+ */
+function sessionFile() {
+  return program.opts().session || DEFAULT_SESSION;
 }
 
-// Load command
+function openSession() {
+  const file = sessionFile();
+
+  if (!fs.existsSync(file)) {
+    console.error(chalk.red(`No session found at ${file}.`));
+    console.error(chalk.gray('Run "nes-cli load <rom.nes>" first, or use "nes-cli script <rom.nes> ...".'));
+    process.exit(1);
+  }
+
+  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+
+  if (!fs.existsSync(data.rom)) {
+    console.error(chalk.red(`Session references a ROM that no longer exists: ${data.rom}`));
+    process.exit(1);
+  }
+
+  const emulator = new Emulator();
+  emulator.loadROM(data.rom);
+  emulator.setState(data);
+  return emulator;
+}
+
+function saveSession(emulator) {
+  fs.writeFileSync(sessionFile(), JSON.stringify(emulator.getState()));
+}
+
+/**
+ * Run a command against the stored session and persist whatever it changed.
+ *
+ * A command that returns false has already explained itself on stderr; exiting
+ * non-zero lets shell scripts and CI notice, which matters for a tool whose
+ * whole point is being driven by other programs.
+ */
+function withSession(fn) {
+  const emulator = openSession();
+  const result = fn(emulator);
+  saveSession(emulator);
+
+  if (result === false) {
+    process.exit(1);
+  }
+
+  return result;
+}
+
 program
   .command('load <rom>')
-  .description('Load a NES ROM file and optionally run frames')
+  .description('Load a ROM and start a session')
   .option('-f, --frames <n>', 'Run N frames after loading')
-  .option('-s, --screenshot <file>', 'Take screenshot after loading')
+  .option('-s, --screenshot <file>', 'Take a screenshot after loading')
   .action((rom, options) => {
-    if (!fs.existsSync(rom)) {
-      console.error(chalk.red(`ROM not found: ${rom}`));
+    const loadCmd = new LoadCommand();
+    if (!loadCmd.execute(rom, { frames: options.frames, screenshot: options.screenshot })) {
       process.exit(1);
     }
-    const loadCmd = new LoadCommand();
-    const frames = options.frames ? parseInt(options.frames) : undefined;
-    loadCmd.execute(rom, { frames, screenshot: options.screenshot });
-    currentEmulator = loadCmd.getEmulator();
+    saveSession(loadCmd.getEmulator());
+    console.log(chalk.gray(`Session: ${sessionFile()}`));
   });
 
-// Run command
 program
   .command('run [frames]')
   .description('Run N frames (default: 60)')
   .action((frames) => {
-    const cmd = new RunCommand(getEmulator());
-    cmd.execute({ frames: frames || 60 });
+    withSession((emulator) => new RunCommand(emulator).execute({ frames: frames || 60 }));
   });
 
-// Step command
 program
   .command('step [frames]')
   .description('Step N frames (default: 1)')
   .action((frames) => {
-    const cmd = new StepCommand(getEmulator());
-    cmd.execute({ frames: frames || 1 });
+    withSession((emulator) => new StepCommand(emulator).execute({ frames: frames || 1 }));
   });
 
-// Screenshot command
 program
   .command('screenshot [output]')
-  .description('Take a screenshot')
-  .option('-f, --format <format>', 'Format: png, ascii, ansi', 'png')
-  .option('-s, --scale <n>', 'Scale factor for ASCII/ANSI', '0.5')
+  .description('Capture the current frame')
+  .option('-f, --format <format>', 'png, ascii, or ansi', 'png')
+  .option('-s, --scale <n>', 'Scale factor for ascii/ansi', '0.5')
   .action((output, options) => {
-    const cmd = new ScreenshotCommand(getEmulator());
-    cmd.execute({ output, format: options.format, scale: parseFloat(options.scale) });
+    withSession((emulator) =>
+      new ScreenshotCommand(emulator).execute({
+        output,
+        format: options.format,
+        scale: parseFloat(options.scale)
+      })
+    );
   });
 
-// Record command
 program
   .command('record')
-  .description('Record screen to file')
-  .option('-f, --format <format>', 'Format: png-sequence, gif, ascii, ansi', 'gif')
-  .option('-d, --duration <time>', 'Duration (e.g., 10s, 500ms)', '5s')
+  .description('Record the screen')
+  .option('-f, --format <format>', 'gif, png-sequence, ascii, or ansi', 'gif')
+  .option('-d, --duration <time>', 'Emulated time to capture (10s, 1.5s, 500ms, 2m, 900f)', '5s')
   .option('-o, --output <path>', 'Output file or directory')
-  .option('--fps <n>', 'Frames per second', '60')
-  .option('-s, --scale <n>', 'Scale factor for ASCII/ANSI', '0.5')
+  .option('--fps <n>', 'Playback rate; frames are sampled down to it', '30')
+  .option('-s, --scale <n>', 'Scale factor for ascii/ansi', '0.5')
   .action((options) => {
-    const cmd = new RecordCommand(getEmulator());
-    cmd.execute({
-      format: options.format,
-      duration: options.duration,
-      output: options.output,
-      fps: parseInt(options.fps),
-      scale: parseFloat(options.scale)
-    });
+    withSession((emulator) =>
+      new RecordCommand(emulator).execute({
+        format: options.format,
+        duration: options.duration,
+        output: options.output,
+        fps: options.fps,
+        scale: parseFloat(options.scale)
+      })
+    );
   });
 
-// Input command
 program
   .command('input <button>')
-  .description('Press controller button (A, B, SELECT, START, UP, DOWN, LEFT, RIGHT)')
+  .description('Press a button (A, B, SELECT, START, UP, DOWN, LEFT, RIGHT)')
   .option('-p, --player <n>', 'Player number', '1')
-  .option('--hold', 'Hold button for duration')
-  .option('--duration <ms>', 'Hold duration in ms', '500')
-  .option('--sequence <seq>', 'Button sequence (comma-separated)')
-  .option('--delay <ms>', 'Delay between sequence buttons', '100')
+  .option('--hold-frames <n>', 'Frames to hold the button (default: 3)')
+  .option('--duration <ms>', 'Hold time in milliseconds, converted to frames')
+  .option('--sequence <seq>', 'Comma-separated buttons to press in turn')
+  .option('--delay <ms>', 'Gap between buttons in a sequence')
   .action((button, options) => {
-    const cmd = new InputCommand(getEmulator());
-    if (options.sequence) {
-      cmd.execute({
-        sequence: options.sequence,
-        player: parseInt(options.player),
-        delay: parseInt(options.delay)
-      });
-    } else {
-      cmd.execute({
+    withSession((emulator) =>
+      new InputCommand(emulator).execute({
         button,
-        player: parseInt(options.player),
-        hold: options.hold,
-        duration: parseInt(options.duration)
-      });
-    }
+        sequence: options.sequence,
+        player: options.player,
+        holdFrames: options.holdFrames,
+        duration: options.duration,
+        delay: options.delay
+      })
+    );
   });
 
-// Sprites command
 program
   .command('sprites')
-  .description('Extract sprites from OAM and CHR ROM')
-  .option('-f, --format <format>', 'Format: chr, oam, metasprite, animation, all', 'all')
+  .description('Extract sprites from OAM and the live pattern tables')
+  .option('-f, --format <format>', 'chr, oam, metasprite, or all', 'all')
   .option('-o, --output <path>', 'Output directory', './sprites')
-  .option('-i, --individual', 'Also generate individual PNG files (1280 for CHR, ~64 for OAM)')
-  .option('--frames <n>', 'Frames to analyze for metasprite/animation (default: 60)', '60')
-  .option('--max-gap <n>', 'Max gap between sprites to cluster (default: 16)', '16')
-  .option('--min-sprites <n>', 'Min sprites per metasprite (default: 2)', '2')
+  .option('-i, --individual', 'Also write one PNG per tile/sprite')
+  .option('--frames <n>', 'Frames to analyse for metasprites', '60')
+  .option('--max-gap <n>', 'Pixel gap that still counts as one metasprite', '8')
+  .option('--min-sprites <n>', 'Minimum sprites per metasprite', '2')
+  .option('--min-y <n>', 'Ignore sprites above this screen row')
+  .option('--max-y <n>', 'Ignore sprites below this screen row')
+  .option('--palettes <list>', 'Comma-separated sprite palettes to consider (0-3)')
   .action((options) => {
-    const cmd = new SpritesCommand(getEmulator());
-    cmd.execute({
-      format: options.format,
-      outputDir: options.output,
-      individual: options.individual,
-      frames: parseInt(options.frames),
-      maxGap: parseInt(options.maxGap),
-      minSprites: parseInt(options.minSprites)
-    });
+    withSession((emulator) =>
+      new SpritesCommand(emulator).execute({
+        format: options.format,
+        outputDir: options.output,
+        individual: options.individual,
+        frames: parseInt(options.frames, 10),
+        maxGap: parseInt(options.maxGap, 10),
+        minSprites: parseInt(options.minSprites, 10),
+        minY: options.minY == null ? undefined : parseInt(options.minY, 10),
+        maxY: options.maxY == null ? undefined : parseInt(options.maxY, 10),
+        palettes: options.palettes
+          ? options.palettes.split(',').map((p) => parseInt(p, 10))
+          : undefined
+      })
+    );
   });
 
-// Audio command
 program
   .command('audio')
-  .description('Record audio from emulator')
-  .option('-f, --format <format>', 'Format: wav, pcm, json', 'wav')
-  .option('-d, --duration <time>', 'Duration (e.g., 10s, 5s)', '10s')
-  .option('-o, --output <file>', 'Output file path')
-  .option('-r, --sample-rate <hz>', 'Sample rate', '44100')
+  .description('Record audio')
+  .option('-f, --format <format>', 'wav, pcm, or json', 'wav')
+  .option('-d, --duration <time>', 'Emulated time to capture', '10s')
+  .option('-o, --output <file>', 'Output file')
   .action((options) => {
-    const cmd = new AudioCommand(getEmulator());
-    cmd.execute({
-      format: options.format,
-      duration: options.duration,
-      output: options.output,
-      sampleRate: parseInt(options.sampleRate)
-    });
+    withSession((emulator) =>
+      new AudioCommand(emulator).execute({
+        format: options.format,
+        duration: options.duration,
+        output: options.output
+      })
+    );
   });
 
-// Save state command
 program
-  .command('save [file]')
-  .description('Save emulator state to file')
-  .option('-s, --slot <n>', 'Quick save slot number')
-  .action((file, options) => {
-    const cmd = new SaveStateCommand(getEmulator());
-    cmd.execute({ slot: options.slot, output: file || 'state.json' });
+  .command('save-state [file]')
+  .alias('save')
+  .description('Write the session state to a named file')
+  .action((file) => {
+    withSession((emulator) => new SaveStateCommand(emulator).execute({ output: file || 'state.json' }));
   });
 
-// Load state command
 program
   .command('load-state [file]')
-  .description('Load emulator state from file')
-  .option('-s, --slot <n>', 'Quick load slot number')
-  .action((file, options) => {
-    const cmd = new LoadStateCommand(getEmulator());
-    cmd.execute({ slot: options.slot, input: file || 'state.json' });
+  .description('Restore the session from a named state file')
+  .action((file) => {
+    withSession((emulator) => new LoadStateCommand(emulator).execute({ input: file || 'state.json' }));
   });
 
-// Dump command
 program
   .command('dump [type]')
   .description('Dump debug info (cpu, ppu, oam, mem)')
-  .option('-r, --range <range>', 'Memory range (e.g., 0x0000-0x00FF)')
+  .option('-r, --range <range>', 'Memory range, e.g. 0x0000-0x00FF')
   .action((type, options) => {
-    const cmd = new DumpCommand(getEmulator());
-    const dumpOptions = {};
-    if (type === 'cpu' || !type) dumpOptions.cpuRegisters = true;
-    if (type === 'ppu' || !type) dumpOptions.ppuRegisters = true;
-    if (type === 'oam') dumpOptions.oam = true;
-    if (type === 'mem') {
-      dumpOptions.memory = true;
-      dumpOptions.range = options.range;
-    }
-    cmd.execute(dumpOptions);
+    withSession((emulator) => {
+      const dumpOptions = {};
+      if (type === 'cpu' || !type) dumpOptions.cpuRegisters = true;
+      if (type === 'ppu' || !type) dumpOptions.ppuRegisters = true;
+      if (type === 'oam') dumpOptions.oam = true;
+      if (type === 'mem') {
+        dumpOptions.memory = true;
+        dumpOptions.range = options.range;
+      }
+      return new DumpCommand(emulator).execute(dumpOptions);
+    });
   });
 
-// REPL command
 program
   .command('repl')
-  .description('Start interactive REPL mode')
+  .description('Interactive shell (keeps one emulator in memory)')
   .action(async () => {
-    const shell = new REPLShell();
-    await shell.start();
+    await new REPLShell().start();
   });
 
-// Batch command
+program
+  .command('script <rom> [commands...]')
+  .description('Load a ROM and run several commands in one process, e.g. run:300 screenshot:out.png')
+  .action((rom, commands) => {
+    const loadCmd = new LoadCommand();
+    if (!loadCmd.execute(rom)) {
+      process.exit(1);
+    }
+
+    const shell = new REPLShell();
+    shell.adopt(loadCmd.getEmulator());
+
+    for (const entry of commands) {
+      const [action, ...args] = entry.split(':');
+      console.log(chalk.gray(`> ${action} ${args.join(' ')}`));
+      shell.executeSync(action, args);
+    }
+  });
+
 program
   .command('batch <file>')
-  .description('Execute commands from script file')
+  .description('Run REPL commands from a file')
   .action(async (file) => {
     if (!fs.existsSync(file)) {
       console.error(chalk.red(`File not found: ${file}`));
       process.exit(1);
     }
-    const commands = fs.readFileSync(file, 'utf8').split('\n').filter(l => l.trim() && !l.startsWith('#'));
-    const shell = new REPLShell();
-    for (const cmd of commands) {
-      console.log(chalk.gray(`> ${cmd}`));
-      await shell.execute(cmd.trim());
-    }
-  });
 
-// Script command - run a complete script in one go
-program
-  .command('script <rom> [commands...]')
-  .description('Load ROM and execute commands: run:N, screenshot:file, sprites:dir, audio:N')
-  .action(async (rom, commands) => {
-    if (!fs.existsSync(rom)) {
-      console.error(chalk.red(`ROM not found: ${rom}`));
-      process.exit(1);
-    }
-    
-    const loadCmd = new LoadCommand();
-    loadCmd.execute(rom);
-    currentEmulator = loadCmd.getEmulator();
-    
-    for (const cmd of commands) {
-      const [action, ...args] = cmd.split(':');
-      console.log(chalk.gray(`> ${action} ${args.join(' ')}`));
-      
-      switch (action) {
-        case 'run':
-          new RunCommand(currentEmulator).execute({ frames: parseInt(args[0]) || 60 });
-          break;
-        case 'step':
-          new StepCommand(currentEmulator).execute({ frames: parseInt(args[0]) || 1 });
-          break;
-        case 'screenshot':
-          const outputFile = args[0] || 'screenshot.png';
-          const ext = require('path').extname(outputFile).toLowerCase();
-          const format = ext === '.txt' ? 'ascii' : ext === '.ansi' ? 'ansi' : 'png';
-          new ScreenshotCommand(currentEmulator).execute({ output: outputFile, format });
-          break;
-        case 'record':
-          new RecordCommand(currentEmulator).execute({ format: args[0] || 'gif', duration: args[1] || '5s', output: args[2] });
-          break;
-        case 'input':
-          new InputCommand(currentEmulator).execute({ button: args[0] });
-          break;
-        case 'sprites':
-          const spritesArgs = args.join(':').split(' ').filter(a => a);
-          const spritesDir = spritesArgs[0] || './sprites';
-          const spritesFormat = spritesArgs.find(a => ['chr', 'oam', 'metasprite', 'animation'].includes(a)) || 'all';
-          const spritesIndividual = spritesArgs.includes('--individual') || spritesArgs.includes('-i');
-          const spritesFrames = parseInt(spritesArgs.find(a => a.startsWith('frames='))?.split('=')[1]) || 60;
-          new SpritesCommand(currentEmulator).execute({ 
-            outputDir: spritesDir,
-            format: spritesFormat,
-            individual: spritesIndividual,
-            frames: spritesFrames
-          });
-          break;
-        case 'audio':
-          new AudioCommand(currentEmulator).execute({ duration: args[0] || '10s', output: args[1] });
-          break;
-        case 'dump':
-          new DumpCommand(currentEmulator).execute({});
-          break;
-        default:
-          console.error(chalk.red(`Unknown action: ${action}`));
-      }
+    const shell = new REPLShell();
+    const lines = fs
+      .readFileSync(file, 'utf8')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'));
+
+    for (const line of lines) {
+      console.log(chalk.gray(`> ${line}`));
+      await shell.execute(line);
     }
   });
 

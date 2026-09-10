@@ -1,29 +1,20 @@
 const fs = require('fs');
-const path = require('path');
 
+/**
+ * Save states are plain JSON of jsnes's own serialisation.
+ *
+ * There is deliberately no in-memory "slot" store: every CLI subcommand is a
+ * separate process, so a Map held in memory was always empty by the time
+ * anything tried to read from it.
+ */
 class StateManager {
-  constructor() {
-    this.states = new Map();
-  }
-
-  save(state, filePath) {
-    const data = JSON.stringify(state, null, 2);
-    fs.writeFileSync(filePath, data);
+  static save(state, filePath) {
+    fs.writeFileSync(filePath, JSON.stringify(state));
     return filePath;
   }
 
-  load(filePath) {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(data);
-  }
-
-  quickSave(slot, state) {
-    this.states.set(slot, state);
-    return slot;
-  }
-
-  quickLoad(slot) {
-    return this.states.get(slot);
+  static load(filePath) {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   }
 }
 

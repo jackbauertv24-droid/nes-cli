@@ -1,13 +1,6 @@
-const c = require('ansi-colors');
+const { unpackRGB } = require('../../core/color');
 
 class ASCIIHandler {
-  static unpackRGB(packed) {
-    const r = (packed >> 16) & 0xFF;
-    const g = (packed >> 8) & 0xFF;
-    const b = packed & 0xFF;
-    return [r, g, b];
-  }
-
   static getAsciiChar(brightness) {
     const chars = ' .:-=+*#%@';
     const index = Math.floor((brightness / 255) * (chars.length - 1));
@@ -27,7 +20,7 @@ class ASCIIHandler {
         const idx = srcY * width + srcX;
         
         const packedColor = frameBuffer[idx] || 0;
-        const [r, g, b] = this.unpackRGB(packedColor);
+        const [r, g, b] = unpackRGB(packedColor);
         const brightness = (r + g + b) / 3;
         
         line += this.getAsciiChar(brightness);
@@ -51,7 +44,7 @@ class ASCIIHandler {
         const idx = srcY * width + srcX;
         
         const packedColor = frameBuffer[idx] || 0;
-        const [r, g, b] = this.unpackRGB(packedColor);
+        const [r, g, b] = unpackRGB(packedColor);
         
         // Use ANSI 24-bit color escape code
         line += `\x1b[38;2;${r};${g};${b}m\u2588\x1b[0m`;

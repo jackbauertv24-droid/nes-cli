@@ -1,143 +1,119 @@
-# Technical Findings: NES Sprite Extraction
+# Technical notes: NES sprite extraction
 
-This document summarizes discoveries made while implementing sprite extraction for nes-cli.
+What is actually true about pulling sprites out of a running NES, learned the
+hard way. An earlier version of this document drew the opposite conclusion on
+its central point; see `ANALYSIS.md` for how that happened.
 
-## MMC3 Mapper and CHR Bank Switching
+## Read tiles from PPU memory, not from the ROM file
 
-**Problem:** Static CHR-ROM reading gives wrong tile data.
+Reading CHR at a file offset only works for cartridges that never switch banks.
+Anything with a mapper - MMC1, MMC3, and most of the library - swaps CHR banks
+during a frame, so tile 177 during one scene is different art from tile 177
+during another.
 
-**Discovery:** SMB3 uses MMC3 mapper which dynamically swaps CHR banks during gameplay. Tile index 177 at frame 1800 contains different pixel data than tile 177 at frame 300.
+The fix is not to give up on tile data. jsnes copies the active bank into
+`ppu.vramMem` on every switch, so:
 
-**Solution:** Read sprite pixels directly from framebuffer instead of static CHR-ROM.
-
-**Evidence:**
-- Frame 1800: Tile 177 showed turtle/enemy sprite data
-- Frame 300: Tile 53,55,49,51 showed Mario sprite data
-- Tile numbers are meaningless without knowing active CHR bank
-
-**jsnes Issue:** The `ptTile[tileIndex].pix` array is unreliable/unpopulated. Most tiles showed mostly zeros when queried directly.
-
-## NES Palette Design
-
-**Problem:** Sprite extraction appeared as black rectangles.
-
-**Discovery:** NES palette design has both palette[0] (transparent) and palette[3] (sprite outline) as RGB(0,0,0) black. Can't distinguish transparent pixels from sprite outline by RGB color matching.
-
-**Solution:** Keep ALL pixels from framebuffer region (no transparency filtering by RGB).
-
-**Palette Examples from SMB3:**
-```
-Palette 0: [RGB(0,0,0), RGB(219,43,0), RGB(255,191,179), RGB(0,0,0)]
-Palette 1: [RGB(0,0,0), RGB(79,223,75), RGB(255,191,179), RGB(0,0,0)]
-Palette 2: [RGB(0,0,0), RGB(255,155,59), RGB(255,255,255), RGB(0,0,0)]
-Palette 3: [RGB(0,0,0), RGB(79,223,75), RGB(255,255,255), RGB(0,0,0)]
+```js
+// $0000-$0FFF is pattern table 0, $1000-$1FFF is table 1.
+const base = table * 0x1000 + index * 16;
+const lowByte  = ppu.vramMem[base + y];
+const highByte = ppu.vramMem[base + y + 8];
 ```
 
-Note: Index 0 and 3 are both black in all palettes.
+always reflects what the PPU is drawing right now. This also works for CHR-RAM
+games, which have no CHR data in the ROM file at all.
 
-## NES OAM Y-Offset
+`ptTile[i].pix` is populated too, and is not unreliable - but sprites usually
+live in pattern table 1, which is `ptTile[i + 256]`. Indexing `ptTile[i]` for a
+sprite tile reads the background table and generally finds blanks.
 
-**Problem:** Sprite positions were off by 1 pixel vertically.
+## Composite from colour indices, not from the framebuffer
 
-**Discovery:** NES OAM stores y-1 in the Y coordinate field. Screen position = OAM_y + 1.
+It is tempting to copy the rendered pixels under a sprite's bounding box. Do
+not. The framebuffer has already resolved everything to RGB, so:
 
-**Fix:** Use `screenY = oam_y + 1` for all position calculations.
+- the background behind and around the sprite comes with it, and
+- palette entry 0 (transparent) and entry 3 (often an outline) are both black
+  on many NES palettes, so once flattened they are indistinguishable.
 
-## 8x16 Sprite Mode
+Work in colour indices instead. Index 0 is the PPU's transparency slot and is
+never ambiguous with index 3, whatever colours they resolve to. Convert to RGB
+only when writing the file, and write index 0 as alpha 0.
 
-**Discovery:** SMB3 uses 8x16 sprite mode (`f_spriteSize = 1`). Each sprite is 2 tiles stacked vertically.
+## Sprite tile addressing
 
-**Tile Selection Rule:**
-- If tile index is EVEN: top tile = tile, bottom tile = tile+1
-- If tile index is ODD: top tile = tile-1, bottom tile = tile
+**8x8 mode.** The pattern table comes from PPUCTRL bit 3. The tile byte is the
+whole index.
 
-**Example:** Sprite with tile=177 (odd):
-- Top half: Tile 176
-- Bottom half: Tile 177
+**8x16 mode.** Bit 0 of the tile byte selects the pattern table; bits 7-1 select
+a tile pair. So tile byte `$05` means table 1, tiles 4 and 5 - not tile 5.
+PPUCTRL bit 3 is ignored entirely in this mode.
 
-## Screen Edge Clipping
-
-**Problem:** Extracted sprites appeared cut off or empty.
-
-**Discovery:** SMB3 title screen animation has Mario and Luigi entering from screen edges.
-
-**Evidence:**
-- Luigi enters from left (x=0-16 at early frames)
-- Mario enters from right (x=240-256 at early frames)
-- When sprites cross screen boundary (x>=256), pixels are not rendered
-
-**Best Extraction Frames:**
-- Frame 300: Mario at x=117-133 (center, fully visible)
-- Frame 210: Luigi at x=42-58 (entering from left, partial)
-- Frame 900: Mario with tail power-up, Luigi, and turtle enemy
-
-## iNES Header Parsing
-
-**Discovery:** Correct CHR-ROM offset calculation:
-
-```
-chrOffset = 16 (header) + trainerSize (512 if present) + prgSize (header[4] * 16384)
+```js
+if (is8x16) {
+  return { table: tileByte & 1, tiles: [tileByte & 0xfe, (tileByte & 0xfe) + 1] };
+}
+return { table: ppuctrlBit3, tiles: [tileByte] };
 ```
 
-**SMB3 Values:**
-- PRG ROM: 16 pages = 262,144 bytes
-- CHR ROM: 16 pages = 131,072 bytes
-- CHR offset: 16 + 262,144 = 262,160
+A vertical flip of an 8x16 sprite mirrors all sixteen rows, which swaps the two
+tiles as well as reversing each one.
 
-## Sprite Palette Assignment
+## OAM layout
 
-**Discovery:** Different sprites use different palettes based on game logic, not fixed assignment.
+Four bytes per sprite, 64 sprites:
 
-**SMB3 Observations:**
-- Palette 0: Often Mario or red-colored sprites
-- Palette 1: Often Luigi or green-colored sprites
-- Palette 2: Often orange/white sprites (enemies, items)
-- Palette 3: Often green/white sprites
+| Byte | Meaning |
+|---|---|
+| 0 | Y position, stored as `screenY - 1` |
+| 1 | Tile index (see above) |
+| 2 | Attributes: bits 0-1 palette, bit 5 priority, bit 6 flip H, bit 7 flip V |
+| 3 | X position |
 
-**Important:** Palette assignment changes dynamically. Can't assume palette 0 = Mario.
+The Y offset is real: the PPU adds one back when it draws. Games hide unused
+sprites by parking them at Y >= `$EF`, so a decoder should treat those as
+invisible - and a test fixture should park them there too, or 62 stray sprites
+appear across the top of the screen.
 
-## jsnes Library Issues
+Lower OAM index means higher priority. When compositing overlapping sprites,
+draw from the highest index down so low indices land on top.
 
-**Unreliable Features:**
-- `ptTile[index].pix` - mostly zeros, not properly populated
-- `ptTile` array doesn't reflect MMC3 CHR bank switching
+## Sprite palettes
 
-**Working Features:**
-- `frameBuffer` - correct rendered screen pixels
-- `getOAM()` - correct sprite positions and attributes
-- `getSpritePalette(index)` - correct palette colors
-- Audio sample generation
+Sprite palettes live at `$3F10`, `$3F14`, `$3F18`, `$3F1C`. Entry 0 of each
+mirrors the universal background colour at `$3F00` and is never drawn.
 
-## Recommended Extraction Approach
+Palette assignment is game logic, not a convention. It changes from scene to
+scene, so "palette 0 is the player" holds only for as long as the game feels
+like it. Treat `--palettes` as a filter you tune per scene, not as an identity.
 
-1. **Don't use CHR-ROM** for runtime sprites (MMC3 bank switching)
-2. **Read framebuffer pixels** at sprite positions
-3. **Keep all pixels** including black (palette[0] and palette[3] both black)
-4. **Filter by screen position** - ignore UI area (y < 150)
-5. **Wait for characters in center** before extracting (avoid edge clipping)
-6. **Group sprites by proximity** to form composite characters
+## Framebuffer byte order
 
-## Frame Timeline for SMB3 Title Screen
+jsnes packs each pixel as `0x00BBGGRR` - **red is the low byte**. This is easy
+to get backwards, because `PaletteTable`'s own `getRed`/`getBlue` helpers read
+the bytes the other way round and only stay self-consistent internally.
 
-| Frame | Time | Description | Best Extraction |
-|-------|------|-------------|-----------------|
-| 300 | 5s | Mario in center | Mario (16x32) |
-| 210 | 3.5s | Luigi entering left | Luigi partial (16x32) |
-| 900 | 15s | Mario with tail, Luigi, turtle | All three characters |
-| 1800 | 30s | Two turtles | Enemies only |
+Two independent confirmations inside jsnes: its debug code labels `0x0000ff` as
+red, and its canvas path ORs the packed value straight into a little-endian
+RGBA word. Also note that `palTable.loadDefaultPalette()` builds a table in the
+*opposite* order to the framebuffer convention, which is why jsnes leaves that
+call commented out in its own constructor. Do not call it.
 
-## File Format Notes
+## Audio
 
-**PNG:** Use RGBA, alpha=255 for all sprite pixels (no transparency)
+jsnes generates samples at `opts.sampleRate`, defaulting to 48000 - not 44100.
+Whatever writes the WAV header has to use the same number the emulator was
+constructed with, or the file plays at the wrong pitch and misreports its
+length.
 
-**GIF:** Works correctly with jsnes framebuffer colors
+## Extraction recipe
 
-**WAV:** 44100Hz mono, jsnes generates audio samples correctly
-
-## Lessons Learned
-
-1. Debug visually - create images showing sprite positions on framebuffer
-2. Don't assume tile numbers are stable (MMC3 changes them)
-3. NES hardware quirks matter (y-1 offset, 8x16 mode, palette design)
-4. User feedback is essential - initial assumptions about "Mario tiles" were wrong
-5. Frame timing matters - characters move and enter from edges
+1. Run to the scene you want. Sprite extraction is a snapshot; pattern tables
+   and palettes both change as the game runs.
+2. Decode OAM, discarding sprites parked at Y >= `$EF`.
+3. Resolve each tile byte to a table and tile pair for the current sprite size.
+4. Read those tiles from `ppu.vramMem`, applying the flip bits.
+5. Group sprites by proximity to find composite characters.
+6. Composite back-to-front, skipping colour index 0.
+7. Resolve to RGB and write, with index 0 as alpha 0.

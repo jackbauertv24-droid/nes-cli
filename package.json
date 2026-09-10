@@ -1,14 +1,15 @@
 {
   "name": "nes-cli",
-  "version": "1.0.0",
-  "description": "NES emulator CLI with headless mode, screen recording, sprite extraction, and audio capture",
+  "version": "2.0.0",
+  "description": "Headless NES emulator CLI with screen recording, sprite extraction, and audio capture",
   "main": "bin/nes-cli.js",
   "bin": {
     "nes-cli": "./bin/nes-cli.js"
   },
   "scripts": {
     "start": "node bin/nes-cli.js",
-    "test": "jest"
+    "test": "jest",
+    "fixtures": "node tools/make-fixtures.js"
   },
   "keywords": [
     "nes",
@@ -19,12 +20,14 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "ansi-colors": "^4.1.3",
     "chalk": "^4.1.2",
     "commander": "^14.0.3",
     "gif-encoder-2": "^1.0.5",
     "inquirer": "^13.4.2",
     "jsnes": "^1.2.1",
     "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }

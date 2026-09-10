@@ -48,7 +48,8 @@ class DumpCommand {
     console.log(`  Scanline:  ${state.scanline}`);
     console.log(`  Cycle:     ${state.cycle}`);
     console.log(`  VRAM:      $${state.vramAddress.toString(16).toUpperCase().padStart(4, '0')}`);
-    console.log(`  Temp:      $${state.tempAddress.toString(16).toUpperCase().padStart(4, '0')}`);
+    console.log(`  Temp:      ${state.tempAddress.toString(16).toUpperCase().padStart(4, '0')}`);
+    console.log(`  Sprites:   ${state.spriteSize}, pattern table ${state.spritePatternTable}`);
     return true;
   }
 
@@ -85,8 +86,15 @@ class DumpCommand {
       const attr = oam[offset + 2];
       const x = oam[offset + 3];
       
-      if (y < 240) { // Only show visible sprites
-        console.log(`  Sprite ${i.toString().padStart(2)}: Y=${y.toString().padStart(3)} X=${x.toString().padStart(3)} Tile=$${tile.toString(16).toUpperCase().padStart(2, '0')} Attr=$${attr.toString(16).toUpperCase().padStart(2, '0')}`);
+      // OAM stores screenY - 1, so report the row the PPU actually draws at.
+      if (y < 239) {
+        console.log(
+          `  Sprite ${i.toString().padStart(2)}: ` +
+          `Y=${(y + 1).toString().padStart(3)} X=${x.toString().padStart(3)} ` +
+          `Tile=${tile.toString(16).toUpperCase().padStart(2, '0')} ` +
+          `Attr=${attr.toString(16).toUpperCase().padStart(2, '0')} ` +
+          `pal=${attr & 3}${attr & 0x40 ? ' flipH' : ''}${attr & 0x80 ? ' flipV' : ''}`
+        );
       }
     }
     return true;

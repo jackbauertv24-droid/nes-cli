@@ -2,75 +2,94 @@ const fs = require('fs');
 const path = require('path');
 const { PNG } = require('pngjs');
 const PNGHandler = require('./png');
-const { JSONHandler } = require('../data/json-csv');
 
+/**
+ * Sprite extraction.
+ *
+ * Everything here composites from NES colour *indices* and only converts to
+ * RGB at the last moment. That ordering matters: index 0 is transparency and
+ * index 3 is frequently an outline, and on most palettes both resolve to the
+ * same black. Any approach that flattens to RGB first - such as scraping the
+ * rendered framebuffer - cannot tell them apart afterwards, and also drags in
+ * whatever background happened to be behind the sprite.
+ */
 class SpriteHandler {
+  /** Decode OAM into 64 sprite records. */
   static extractOAM(emulator) {
     const oam = emulator.getOAM();
     const sprites = [];
-    
+
     for (let i = 0; i < 64; i++) {
       const offset = i * 4;
       const oamY = oam[offset];
-      const screenY = oamY < 240 ? oamY + 1 : oamY;
+      const attributes = oam[offset + 2];
+
       sprites.push({
         id: i,
         y: oamY,
-        screenY: screenY,
+        // OAM stores screenY - 1; the PPU adds it back when it draws.
+        screenY: oamY + 1,
         tile: oam[offset + 1],
-        attributes: oam[offset + 2],
+        attributes,
         x: oam[offset + 3],
-        palette: (oam[offset + 2] & 0x03),
-        priority: (oam[offset + 2] & 0x20) >> 5,
-        flipHorizontal: (oam[offset + 2] & 0x40) >> 6,
-        flipVertical: (oam[offset + 2] & 0x80) >> 7,
-        visible: oamY < 240
+        palette: attributes & 0x03,
+        priority: (attributes & 0x20) >> 5,
+        flipHorizontal: (attributes & 0x40) >> 6,
+        flipVertical: (attributes & 0x80) >> 7,
+        // A sprite parked at y >= 239 is off-screen; games hide sprites there.
+        visible: oamY < 239
       });
     }
-    
+
     return sprites;
   }
 
+  /**
+   * Build the colour-index bitmap for one sprite, honouring sprite size, which
+   * pattern table it comes from, and both flip bits.
+   */
+  static getSpritePixels(emulator, sprite) {
+    const { table, tiles } = emulator.resolveSpriteTiles(sprite.tile);
+    const height = tiles.length * 8;
+    let pixels = [];
+
+    for (const tile of tiles) {
+      pixels = pixels.concat(emulator.getPatternTile(table, tile));
+    }
+
+    if (sprite.flipHorizontal) {
+      pixels = this.flipHorizontal(pixels, 8, height);
+    }
+    if (sprite.flipVertical) {
+      // A vertical flip of an 8x16 sprite mirrors the whole 16 rows, which
+      // swaps the two tiles as well as reversing each one.
+      pixels = this.flipVertical(pixels, 8, height);
+    }
+
+    return { pixels, width: 8, height };
+  }
+
   static extractOAMWithImages(emulator) {
-    const sprites = this.extractOAM(emulator);
-    const is8x16 = emulator.is8x16Sprites();
-    
-    return sprites.map(sprite => {
+    return this.extractOAM(emulator).map((sprite) => {
+      const height = emulator.is8x16Sprites() ? 16 : 8;
+
       if (!sprite.visible) {
-        return { ...sprite, renderedPixels: null, width: 8, height: is8x16 ? 16 : 8 };
+        return { ...sprite, renderedPixels: null, width: 8, height };
       }
-      
-      const palette = emulator.getSpritePalette(sprite.palette);
-      let pixelData = this.getSpritePixels(emulator, sprite.tile, is8x16);
-      
-      if (sprite.flipHorizontal) {
-        pixelData = this.flipHorizontal(pixelData, 8, is8x16 ? 16 : 8);
-      }
-      if (sprite.flipVertical) {
-        pixelData = this.flipVertical(pixelData, 8, is8x16 ? 16 : 8);
-      }
-      
+
+      const { pixels, width } = this.getSpritePixels(emulator, sprite);
       return {
         ...sprite,
-        renderedPixels: pixelData,
-        palette,
-        width: 8,
-        height: is8x16 ? 16 : 8
+        renderedPixels: pixels,
+        paletteColors: emulator.getSpritePalette(sprite.palette),
+        width,
+        height
       };
     });
   }
 
-  static getSpritePixels(emulator, tileIndex, is8x16) {
-    if (is8x16) {
-      const tile1 = emulator.getTilePixelData(tileIndex & 0xFE);
-      const tile2 = emulator.getTilePixelData((tileIndex & 0xFE) + 1);
-      return [...tile1, ...tile2];
-    }
-    return emulator.getTilePixelData(tileIndex);
-  }
-
   static flipHorizontal(pixelData, width, height) {
-    const flipped = new Array(pixelData.length);
+    const flipped = new Array(pixelData.length).fill(0);
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         flipped[y * width + (width - 1 - x)] = pixelData[y * width + x];
@@ -80,7 +99,7 @@ class SpriteHandler {
   }
 
   static flipVertical(pixelData, width, height) {
-    const flipped = new Array(pixelData.length);
+    const flipped = new Array(pixelData.length).fill(0);
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         flipped[(height - 1 - y) * width + x] = pixelData[y * width + x];
@@ -89,51 +108,12 @@ class SpriteHandler {
     return flipped;
   }
 
-  static extractCHRTiles(romData, bank = 0) {
+  /** Read every tile of one live pattern table as colour indices. */
+  static extractPatternTable(emulator, table) {
     const tiles = [];
-    
-    // iNES header parsing
-    const header = romData.slice(0, 16);
-    const prgSize = header[4] * 16384;
-    const chrSize = header[5] * 8192;
-    const hasTrainer = (header[6] & 0x04) !== 0;
-    const trainerSize = hasTrainer ? 512 : 0;
-    
-    // CHR-ROM offset: header + trainer + PRG-ROM
-    const chrOffset = 16 + trainerSize + prgSize + (bank * 0x2000);
-    const hasCHR = romData.length >= chrOffset + 0x2000;
-    
-    if (!hasCHR) {
-      console.warn('No CHR-ROM data found in ROM');
-      // Return empty tiles
-      for (let tile = 0; tile < 256; tile++) {
-        tiles.push({ id: tile, data: new Array(64).fill(0) });
-      }
-      return tiles;
+    for (let id = 0; id < 256; id++) {
+      tiles.push({ id, table, data: emulator.getPatternTile(table, id) });
     }
-    
-    for (let tile = 0; tile < 256; tile++) {
-      const tileOffset = chrOffset + (tile * 16);
-      const pixelData = new Array(64).fill(0);
-      
-      for (let y = 0; y < 8; y++) {
-        const lowByte = romData[tileOffset + y] || 0;
-        const highByte = romData[tileOffset + y + 8] || 0;
-        
-        for (let x = 0; x < 8; x++) {
-          const bit = 7 - x;
-          const lowBit = (lowByte >> bit) & 1;
-          const highBit = (highByte >> bit) & 1;
-          pixelData[y * 8 + x] = (highBit << 1) | lowBit;
-        }
-      }
-      
-      tiles.push({
-        id: tile,
-        data: pixelData
-      });
-    }
-    
     return tiles;
   }
 
@@ -141,123 +121,136 @@ class SpriteHandler {
     return [[0, 0, 0], [85, 85, 85], [170, 170, 170], [255, 255, 255]];
   }
 
-  static createSpriteSheet(tiles, palette, outputPath, tilesPerRow = 8) {
-    const tileSize = 8;
-    const totalTiles = tiles.length;
-    const rows = Math.ceil(totalTiles / tilesPerRow);
-    const width = tilesPerRow * tileSize;
-    const height = rows * tileSize;
-    
+  /** Lay tiles out in a grid. Cell size follows the tiles, not a constant. */
+  static createSpriteSheet(tiles, palette, outputPath, tilesPerRow = 16) {
+    const rows = Math.ceil(tiles.length / tilesPerRow);
+    const width = tilesPerRow * 8;
+    const height = rows * 8;
     const png = new PNG({ width, height });
-    
-    for (let i = 0; i < totalTiles; i++) {
-      const tile = tiles[i];
-      const row = Math.floor(i / tilesPerRow);
-      const col = i % tilesPerRow;
-      
-      for (let y = 0; y < tileSize; y++) {
-        for (let x = 0; x < tileSize; x++) {
-          const pixel = tile.data[y * tileSize + x];
+
+    tiles.forEach((tile, i) => {
+      const originX = (i % tilesPerRow) * 8;
+      const originY = Math.floor(i / tilesPerRow) * 8;
+
+      for (let y = 0; y < 8; y++) {
+        for (let x = 0; x < 8; x++) {
+          const pixel = tile.data[y * 8 + x] || 0;
           const [r, g, b] = palette[pixel] || [0, 0, 0];
-          
-          const destX = col * tileSize + x;
-          const destY = row * tileSize + y;
-          const idx = (destY * width + destX) * 4;
-          
+          const idx = ((originY + y) * width + originX + x) * 4;
           png.data[idx] = r;
           png.data[idx + 1] = g;
           png.data[idx + 2] = b;
           png.data[idx + 3] = pixel === 0 ? 0 : 255;
         }
       }
-    }
-    
+    });
+
     fs.writeFileSync(outputPath, PNG.sync.write(png));
     return outputPath;
   }
 
-  static createOAMSpriteSheet(sprites, outputPath, tilesPerRow = 8) {
-    const tileSize = 8;
-    const visibleSprites = sprites.filter(s => s.renderedPixels);
-    const rows = Math.ceil(visibleSprites.length / tilesPerRow);
-    const width = tilesPerRow * tileSize;
-    const height = rows * tileSize;
-    
+  /**
+   * Lay visible OAM sprites out in a grid, each drawn with its own palette.
+   * Cells are sized to the tallest sprite so 8x16 sprites are not clipped -
+   * the previous version used fixed 8px cells and the rows overwrote each
+   * other, which is why the old spritesheet.png looked like noise.
+   */
+  static createOAMSpriteSheet(sprites, outputPath, spritesPerRow = 16) {
+    const drawable = sprites.filter((s) => s.renderedPixels);
+    if (drawable.length === 0) {
+      return null;
+    }
+
+    const cellW = Math.max(...drawable.map((s) => s.width));
+    const cellH = Math.max(...drawable.map((s) => s.height));
+    const rows = Math.ceil(drawable.length / spritesPerRow);
+    const width = spritesPerRow * cellW;
+    const height = rows * cellH;
     const png = new PNG({ width, height });
-    
-    for (let i = 0; i < visibleSprites.length; i++) {
-      const sprite = visibleSprites[i];
-      const row = Math.floor(i / tilesPerRow);
-      const col = i % tilesPerRow;
-      const palette = sprite.palette;
-      
+
+    drawable.forEach((sprite, i) => {
+      const originX = (i % spritesPerRow) * cellW;
+      const originY = Math.floor(i / spritesPerRow) * cellH;
+      const palette = sprite.paletteColors;
+
       for (let y = 0; y < sprite.height; y++) {
         for (let x = 0; x < sprite.width; x++) {
           const pixel = sprite.renderedPixels[y * sprite.width + x] || 0;
           const [r, g, b] = palette[pixel] || [0, 0, 0];
-          
-          const destX = col * tileSize + x;
-          const destY = row * tileSize + y;
-          const idx = (destY * width + destX) * 4;
-          
+          const idx = ((originY + y) * width + originX + x) * 4;
           png.data[idx] = r;
           png.data[idx + 1] = g;
           png.data[idx + 2] = b;
           png.data[idx + 3] = pixel === 0 ? 0 : 255;
         }
       }
-    }
-    
+    });
+
     fs.writeFileSync(outputPath, PNG.sync.write(png));
     return outputPath;
   }
 
-  static saveCHRTiles(tiles, palettes, outputDir, individual = false) {
+  static savePatternTables(emulator, outputDir, individual = false) {
     fs.mkdirSync(outputDir, { recursive: true });
+    const palettes = emulator.getAllSpritePalettes();
+    const gray = this.getGrayscalePalette();
     const results = [];
-    const grayPalette = this.getGrayscalePalette();
-    
-    results.push(this.createSpriteSheet(tiles, grayPalette, path.join(outputDir, 'spritesheet_gray.png'), 8));
-    
-    for (let p = 0; p < 4; p++) {
-      results.push(this.createSpriteSheet(tiles, palettes[p], path.join(outputDir, `spritesheet_palette${p}.png`), 8));
-    }
-    
-    if (individual) {
-      const grayDir = path.join(outputDir, 'gray');
-      fs.mkdirSync(grayDir, { recursive: true });
-      for (const tile of tiles) {
-        PNGHandler.saveSprite(tile.data, path.join(grayDir, `tile_${String(tile.id).padStart(3, '0')}.png`), grayPalette);
-      }
-      
+
+    for (const table of [0, 1]) {
+      const tiles = this.extractPatternTable(emulator, table);
+      results.push(
+        this.createSpriteSheet(tiles, gray, path.join(outputDir, `table${table}_gray.png`))
+      );
+
       for (let p = 0; p < 4; p++) {
-        const palDir = path.join(outputDir, `palette${p}`);
-        fs.mkdirSync(palDir, { recursive: true });
+        results.push(
+          this.createSpriteSheet(
+            tiles,
+            palettes[p],
+            path.join(outputDir, `table${table}_palette${p}.png`)
+          )
+        );
+      }
+
+      if (individual) {
+        const tileDir = path.join(outputDir, `table${table}`);
+        fs.mkdirSync(tileDir, { recursive: true });
         for (const tile of tiles) {
-          PNGHandler.saveSprite(tile.data, path.join(palDir, `tile_${String(tile.id).padStart(3, '0')}.png`), palettes[p]);
+          PNGHandler.saveSprite(
+            tile.data,
+            path.join(tileDir, `tile_${String(tile.id).padStart(3, '0')}.png`),
+            gray
+          );
         }
       }
     }
-    
+
     return results;
   }
 
   static saveOAMSprites(oamSprites, outputDir, individual = false) {
     fs.mkdirSync(outputDir, { recursive: true });
     const results = [];
-    
-    const visibleSprites = oamSprites.filter(s => s.visible && s.renderedPixels);
-    
-    results.push(this.createOAMSpriteSheet(oamSprites, path.join(outputDir, 'spritesheet.png'), 8));
-    
+    const sheet = this.createOAMSpriteSheet(oamSprites, path.join(outputDir, 'spritesheet.png'));
+
+    if (sheet) {
+      results.push(sheet);
+    }
+
     if (individual) {
-      for (const sprite of visibleSprites) {
+      for (const sprite of oamSprites.filter((s) => s.renderedPixels)) {
         const filename = `sprite_${String(sprite.id).padStart(2, '0')}.png`;
-        PNGHandler.saveSprite(sprite.renderedPixels, path.join(outputDir, filename), sprite.palette, sprite.width, sprite.height);
+        PNGHandler.saveSprite(
+          sprite.renderedPixels,
+          path.join(outputDir, filename),
+          sprite.paletteColors,
+          sprite.width,
+          sprite.height
+        );
         results.push(path.join(outputDir, filename));
       }
     }
-    
+
     return results;
   }
 }

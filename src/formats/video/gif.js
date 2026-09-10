@@ -1,18 +1,15 @@
 const GIFEncoder = require('gif-encoder-2');
 const fs = require('fs');
+const { unpackRGB } = require('../../core/color');
 
 class GIFHandler {
-  static unpackRGB(packed) {
-    const r = (packed >> 16) & 0xFF;
-    const g = (packed >> 8) & 0xFF;
-    const b = packed & 0xFF;
-    return [r, g, b];
-  }
-
-  static createGIF(width = 256, height = 240) {
+  static createGIF(width = 256, height = 240, fps = 60) {
     const encoder = new GIFEncoder(width, height);
     encoder.setRepeat(0);
-    encoder.setDelay(1000 / 60);
+    // GIF stores delay in centiseconds, so anything faster than 100fps is
+    // rounded; most viewers also clamp delays under 2cs. Callers wanting a
+    // smooth GIF should drop to 30 or 20fps rather than asking for 60.
+    encoder.setDelay(1000 / fps);
     encoder.start();
     return encoder;
   }
@@ -23,7 +20,7 @@ class GIFHandler {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x;
         const packedColor = frameBuffer[idx] || 0;
-        const [r, g, b] = this.unpackRGB(packedColor);
+        const [r, g, b] = unpackRGB(packedColor);
         const rgbaIdx = idx * 4;
         rgba[rgbaIdx] = r;
         rgba[rgbaIdx + 1] = g;

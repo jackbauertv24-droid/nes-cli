@@ -2,126 +2,107 @@ const PNGHandler = require('../formats/image/png');
 const GIFHandler = require('../formats/video/gif');
 const ASCIIHandler = require('../formats/image/ascii');
 const FileUtils = require('../utils/file');
+const { parseDurationFrames, framesToSeconds } = require('../utils/duration');
 const chalk = require('chalk');
 const fs = require('fs');
-const path = require('path');
 
 class RecordCommand {
   constructor(emulator) {
     this.emulator = emulator;
   }
 
+  /**
+   * Record the screen.
+   *
+   * `duration` is always emulated time, and `fps` is the playback rate of the
+   * output. The emulator still runs every frame; frames are sampled down to
+   * the requested rate so a 30fps GIF of 10 seconds contains 300 images of
+   * 10 seconds of gameplay. Previously --fps only multiplied the frame count,
+   * so it changed how much was captured rather than how fast it played.
+   */
   execute(options = {}) {
-    const format = options.format || 'png-sequence';
-    const duration = this.parseDuration(options.duration || '5s');
-    const fps = parseInt(options.fps) || 60;
-    const totalFrames = Math.floor(duration * fps);
-    
-    console.log(chalk.blue(`Recording ${totalFrames} frames (${duration}s @ ${fps}fps)...`));
+    const format = options.format || 'gif';
+    const fps = parseFloat(options.fps) || 30;
+    let totalFrames;
 
-    switch (format) {
-      case 'png-sequence':
-        return this.recordPNGSequence(totalFrames, options);
-      case 'gif':
-        return this.recordGIF(totalFrames, options);
-      case 'ascii':
-        return this.recordASCII(totalFrames, options);
-      case 'ansi':
-        return this.recordANSI(totalFrames, options);
-      default:
-        console.error(chalk.red(`Unknown format: ${format}`));
-        return false;
+    try {
+      totalFrames = parseDurationFrames(options.duration || '5s');
+    } catch (error) {
+      console.error(chalk.red(error.message));
+      return false;
     }
-  }
 
-  parseDuration(duration) {
-    const match = duration.match(/^(\d+)(s|ms)$/);
-    if (!match) return 5;
-    const value = parseInt(match[1]);
-    const unit = match[2];
-    return unit === 'ms' ? value / 1000 : value;
-  }
+    const stride = Math.max(1, Math.round(60 / fps));
+    const captured = Math.ceil(totalFrames / stride);
 
-  recordPNGSequence(totalFrames, options) {
-    const outputDir = options.output || './frames';
-    FileUtils.ensureDir(outputDir);
+    console.log(
+      chalk.blue(
+        `Recording ${framesToSeconds(totalFrames).toFixed(2)}s ` +
+          `(${totalFrames} emulated frames -> ${captured} at ${fps}fps)...`
+      )
+    );
 
+    const sink = this.createSink(format, options, fps);
+    if (!sink) {
+      console.error(chalk.red(`Unknown format: ${format}`));
+      return false;
+    }
+
+    let index = 0;
     for (let i = 0; i < totalFrames; i++) {
       this.emulator.frame();
-      const frameBuffer = this.emulator.getFrameBuffer();
-      const fileName = FileUtils.generateSequenceName(outputDir, 'frame', i + 1, 'png');
-      PNGHandler.save(frameBuffer, fileName);
-      
-      if ((i + 1) % 60 === 0) {
-        console.log(chalk.blue(`  ${i + 1}/${totalFrames} frames...`));
+      if (i % stride !== 0) continue;
+
+      sink.add(this.emulator.getFrameBuffer(), index);
+      index += 1;
+
+      if (index % 60 === 0) {
+        console.log(chalk.blue(`  ${index}/${captured} frames...`));
       }
     }
 
-    console.log(chalk.green(`PNG sequence saved to: ${outputDir}`));
-    return outputDir;
+    const output = sink.finish();
+    console.log(chalk.green(`Recording saved: ${output}`));
+    return output;
   }
 
-  recordGIF(totalFrames, options) {
-    const outputPath = options.output || 'recording.gif';
-    const encoder = GIFHandler.createGIF(256, 240);
-
-    for (let i = 0; i < totalFrames; i++) {
-      this.emulator.frame();
-      const frameBuffer = this.emulator.getFrameBuffer();
-      GIFHandler.addFrame(encoder, frameBuffer);
-      
-      if ((i + 1) % 60 === 0) {
-        console.log(chalk.blue(`  ${i + 1}/${totalFrames} frames...`));
-      }
-    }
-
-    GIFHandler.save(encoder, outputPath);
-    console.log(chalk.green(`GIF saved: ${outputPath}`));
-    return outputPath;
-  }
-
-  recordASCII(totalFrames, options) {
-    const outputPath = options.output || 'recording.txt';
-    let output = '';
+  createSink(format, options, fps) {
     const scale = options.scale || 0.5;
 
-    for (let i = 0; i < totalFrames; i++) {
-      this.emulator.frame();
-      const frameBuffer = this.emulator.getFrameBuffer();
-      output += `=== Frame ${i + 1} ===\n`;
-      output += ASCIIHandler.frameToASCII(frameBuffer, 256, 240, scale);
-      output += '\n';
-      
-      if ((i + 1) % 60 === 0) {
-        console.log(chalk.blue(`  ${i + 1}/${totalFrames} frames...`));
-      }
+    if (format === 'png-sequence') {
+      const outputDir = options.output || './frames';
+      FileUtils.ensureDir(outputDir);
+      return {
+        add: (fb, i) => PNGHandler.save(fb, FileUtils.generateSequenceName(outputDir, 'frame', i + 1, 'png')),
+        finish: () => outputDir
+      };
     }
 
-    fs.writeFileSync(outputPath, output);
-    console.log(chalk.green(`ASCII recording saved: ${outputPath}`));
-    return outputPath;
-  }
-
-  recordANSI(totalFrames, options) {
-    const outputPath = options.output || 'recording.ansi';
-    let output = '';
-    const scale = options.scale || 0.25;
-
-    for (let i = 0; i < totalFrames; i++) {
-      this.emulator.frame();
-      const frameBuffer = this.emulator.getFrameBuffer();
-      output += `=== Frame ${i + 1} ===\n`;
-      output += ASCIIHandler.frameToANSI(frameBuffer, 256, 240, scale);
-      output += '\n';
-      
-      if ((i + 1) % 60 === 0) {
-        console.log(chalk.blue(`  ${i + 1}/${totalFrames} frames...`));
-      }
+    if (format === 'gif') {
+      const outputPath = options.output || 'recording.gif';
+      const encoder = GIFHandler.createGIF(256, 240, fps);
+      return {
+        add: (fb) => GIFHandler.addFrame(encoder, fb),
+        finish: () => GIFHandler.save(encoder, outputPath)
+      };
     }
 
-    fs.writeFileSync(outputPath, output);
-    console.log(chalk.green(`ANSI recording saved: ${outputPath}`));
-    return outputPath;
+    if (format === 'ascii' || format === 'ansi') {
+      const outputPath = options.output || `recording.${format === 'ascii' ? 'txt' : 'ansi'}`;
+      const render = format === 'ascii'
+        ? (fb) => ASCIIHandler.frameToASCII(fb, 256, 240, scale)
+        : (fb) => ASCIIHandler.frameToANSI(fb, 256, 240, options.scale || 0.25);
+      const chunks = [];
+      return {
+        add: (fb, i) => chunks.push(`=== Frame ${i + 1} ===\n${render(fb)}\n`),
+        finish: () => {
+          fs.writeFileSync(outputPath, chunks.join(''));
+          return outputPath;
+        }
+      };
+    }
+
+    return null;
   }
 }
 
