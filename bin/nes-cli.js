@@ -14,6 +14,7 @@ const AudioCommand = require('../src/commands/audio');
 const { SaveStateCommand, LoadStateCommand } = require('../src/commands/state');
 const DumpCommand = require('../src/commands/dump');
 const REPLShell = require('../src/repl/shell');
+const InfoCommand = require('../src/commands/info');
 
 const program = new Command();
 const DEFAULT_SESSION = '.nes-cli-session.json';
@@ -102,6 +103,16 @@ function withSession(fn) {
 
   return result;
 }
+
+program
+  .command('info <rom>')
+  .description('Report a cartridge\'s mapper, CHR type and sprite size without capturing anything')
+  .option('-f, --frames <n>', 'Frames to run before reporting how it draws', '600')
+  .action((rom, options) => {
+    if (!new InfoCommand().execute(rom, options)) {
+      process.exit(1);
+    }
+  });
 
 program
   .command('load <rom>')

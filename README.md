@@ -45,6 +45,18 @@ audio inside a single `script` run.
 
 ## Commands
 
+### Inspecting a cartridge
+
+```bash
+nes-cli info game.nes
+```
+
+Reports the mapper, whether tile data is ROM or RAM, the sprite size, and
+whether tiles actually reach the PPU through mapper bank switches or through
+`$2007` writes - without capturing anything. Worth a second before planning a
+capture, because a cartridge often is not what its mapper number suggests: Zelda
+is MMC1, but being CHR-RAM its mapper's CHR routines never run.
+
 ### Running
 
 ```bash
