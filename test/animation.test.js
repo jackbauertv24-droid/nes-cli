@@ -142,3 +142,123 @@ describe('animation tracking', () => {
     expect(result).toBeNull();
   });
 });
+
+/**
+ * flicker.nes rotates its character through a different block of OAM slots
+ * every frame and skips drawing it entirely for four frames out of thirty-two.
+ * Both behaviours are copied from Castlevania, whose demo rotates slots every
+ * frame and loses Simon for six to twelve frames at a time.
+ */
+describe('characters that flicker and move around OAM', () => {
+  const SpriteHandler = require('../src/formats/image/spritesheet');
+
+  test('the fixture shares no OAM slot between consecutive frames', () => {
+    const emulator = boot('flicker.nes', 30);
+    const drawn = [];
+
+    for (let i = 0; i < 40; i++) {
+      emulator.run(1);
+      const visible = SpriteHandler.extractOAM(emulator).filter((s) => s.visible);
+      if (visible.length) drawn.push(visible.map((s) => s.id));
+    }
+
+    for (let i = 1; i < drawn.length; i++) {
+      const shared = drawn[i].filter((id) => drawn[i - 1].includes(id));
+      expect(shared).toHaveLength(0);
+    }
+  });
+
+  test('the fixture stops drawing the character periodically', () => {
+    const emulator = boot('flicker.nes', 30);
+    let blank = 0;
+
+    for (let i = 0; i < 64; i++) {
+      emulator.run(1);
+      if (SpriteHandler.extractOAM(emulator).filter((s) => s.visible).length === 0) blank += 1;
+    }
+
+    expect(blank).toBeGreaterThan(4);
+  });
+
+  test('it is still tracked as one clip', () => {
+    // Identity here can only come from position: slots never overlap, so a
+    // tracker that leans on them produces a new clip every frame.
+    const emulator = boot('flicker.nes', 30);
+    const clips = new AnimationTracker(emulator).track(160);
+
+    expect(clips).toHaveLength(1);
+    expect(clips[0].poses).toHaveLength(3);
+    expect(clips[0].totalFrames).toBeGreaterThan(100);
+  });
+
+  test('too strict a miss allowance breaks the clip up', () => {
+    // Demonstrates why the default is forgiving: with almost no tolerance for
+    // absence, the blank frames shatter one character into many clips.
+    const emulator = boot('flicker.nes', 30);
+    const clips = new AnimationTracker(emulator, { maxMisses: 0 }).track(160);
+    expect(clips.length).toBeGreaterThan(1);
+  });
+});
+
+describe('identity matching', () => {
+  function tracker(options) {
+    return new AnimationTracker(boot('animation.nes', 10), options);
+  }
+
+  const track = (overrides = {}) => ({
+    palette: 0,
+    oam: [0, 1, 2, 3],
+    centreX: 100,
+    centreY: 100,
+    misses: 0,
+    ...overrides
+  });
+
+  const group = (overrides = {}) => ({
+    palette: 0,
+    oam: [0, 1, 2, 3],
+    centreX: 100,
+    centreY: 100,
+    ...overrides
+  });
+
+  test('a nearby candidate matches even when its palette differs', () => {
+    // A character's dominant palette changes with its cluster: Simon is
+    // palette 0 and his whip palette 1, so the combined cluster flips when he
+    // attacks. Treating palette as a veto loses him on every swing.
+    const score = tracker().matchScore(track(), group({ palette: 1, oam: [40, 41] }));
+    expect(score).not.toBeNull();
+    expect(score.samePalette).toBe(false);
+  });
+
+  test('a matching palette is preferred over a merely closer candidate', () => {
+    const t = tracker();
+    const same = t.matchScore(track(), group({ oam: [40], centreX: 120 }));
+    const different = t.matchScore(track(), group({ palette: 2, oam: [40], centreX: 101 }));
+
+    expect(same.samePalette).toBe(true);
+    expect(different.samePalette).toBe(false);
+    expect(different.distance).toBeLessThan(same.distance);
+    // assign() sorts on samePalette first, so the further same-palette
+    // candidate wins despite being further away.
+  });
+
+  test('shared OAM slots override the distance limit', () => {
+    const far = group({ centreX: 240, oam: [0, 1] });
+    expect(tracker().matchScore(track(), far)).not.toBeNull();
+  });
+
+  test('a distant candidate with no shared slots is rejected', () => {
+    const far = group({ centreX: 240, oam: [40, 41] });
+    expect(tracker().matchScore(track(), far)).toBeNull();
+  });
+
+  test('the reach grows while a character is missing', () => {
+    const t = tracker();
+    const far = group({ centreX: 160, oam: [40, 41] });
+
+    expect(t.matchScore(track({ misses: 0 }), far)).toBeNull();
+    // Absent for three frames, so it has had three frames in which to move.
+    expect(t.matchScore(track({ misses: 3 }), far)).not.toBeNull();
+  });
+});

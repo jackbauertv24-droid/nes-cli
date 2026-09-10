@@ -671,6 +671,202 @@ function buildChrRam() {
   return buildNROM(a.assemble(), Buffer.alloc(0));
 }
 
+/**
+ * flicker.nes - the same walking character, but hostile to naive tracking.
+ *
+ * Modelled on what Castlevania actually does. Its four sprites are written to a
+ * different block of OAM slots every frame, rotating through the table, which is
+ * how games spread sprite flicker so that no one object is always the one
+ * dropped. The consequence for extraction is that OAM slot overlap between
+ * consecutive frames is zero, and any identity built on slots falls apart.
+ *
+ * On top of that the character is not drawn at all for four frames out of every
+ * thirty-two, the way a real game loses a sprite when too many share a scanline.
+ * Castlevania's demo loses Simon for six to twelve frames at a time.
+ *
+ * A tracker has to ride out both and still return one clip.
+ */
+function buildFlicker() {
+  const chr = Buffer.alloc(8192, 0);
+  for (let pose = 0; pose < 3; pose++) {
+    for (let tile = 0; tile < 8; tile++) {
+      const pixels = new Array(64).fill(pose + 1);
+      pixels[0] = 0;
+      pixels[7] = 0;
+      pixels[56] = 0;
+      pixels[63] = 0;
+      encodeTile(pixels).copy(chr, 0x1000 + (pose * 8 + tile) * 16);
+    }
+  }
+
+  const palettes = [
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+    0x21, 0x16, 0x2a, 0x30, 0x21, 0x12, 0x27, 0x30,
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+  ];
+
+  const tiles = [];
+  for (let pose = 0; pose < 3; pose++) {
+    for (let sprite = 0; sprite < 4; sprite++) {
+      tiles.push(((pose * 8 + sprite * 2) & 0xfe) | 1);
+    }
+  }
+
+  const FRAME = 0x10;
+  const POSE_TIMER = 0x11;
+  const POSE = 0x12;
+  const XPOS = 0x13;
+  const SLOT = 0x14; // where to draw next
+  const LAST_SLOT = 0x15; // where we drew last, so it can be cleared
+
+  const a = new Assembler(0xc000);
+  resetPreamble(a);
+
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, PPUCTRL);
+  M.staAbs(a, PPUMASK);
+  M.staZp(a, FRAME);
+  M.staZp(a, POSE_TIMER);
+  M.staZp(a, POSE);
+  M.staZp(a, SLOT);
+  M.staZp(a, LAST_SLOT);
+  M.ldaImm(a, 32);
+  M.staZp(a, XPOS);
+
+  setPpuAddr(a, 0x3f00);
+  M.ldxImm(a, 0x00);
+  a.label('palloop');
+  M.ldaAbsX(a, 'paltable');
+  M.staAbs(a, PPUDATA);
+  M.inx(a);
+  M.cpxImm(a, palettes.length);
+  M.bne(a, 'palloop');
+
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, OAMADDR);
+  M.ldyImm(a, 64);
+  a.label('parkloop');
+  M.ldaImm(a, 0xff);
+  M.staAbs(a, OAMDATA);
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, OAMDATA);
+  M.staAbs(a, OAMDATA);
+  M.staAbs(a, OAMDATA);
+  M.dey(a);
+  M.bne(a, 'parkloop');
+
+  M.ldaImm(a, 0x20);
+  M.staAbs(a, PPUCTRL);
+  M.ldaImm(a, 0x1e);
+  M.staAbs(a, PPUMASK);
+
+  a.label('main');
+  a.label('waitvb');
+  M.bitAbs(a, PPUSTATUS);
+  M.bpl(a, 'waitvb');
+
+  M.incZp(a, FRAME);
+
+  M.incZp(a, POSE_TIMER);
+  M.ldaZp(a, POSE_TIMER);
+  M.cmpImm(a, 8);
+  M.bne(a, 'moved');
+  M.ldaImm(a, 0x00);
+  M.staZp(a, POSE_TIMER);
+  M.incZp(a, POSE);
+  M.ldaZp(a, POSE);
+  M.cmpImm(a, 3);
+  M.bne(a, 'moved');
+  M.ldaImm(a, 0x00);
+  M.staZp(a, POSE);
+  a.label('moved');
+
+  M.ldaZp(a, FRAME);
+  M.andImm(a, 1);
+  M.bne(a, 'nomove');
+  M.incZp(a, XPOS);
+  a.label('nomove');
+
+  // Clear wherever the character was drawn last frame.
+  M.ldaZp(a, LAST_SLOT);
+  M.aslA(a);
+  M.aslA(a);
+  M.staAbs(a, OAMADDR);
+  M.ldyImm(a, 4);
+  a.label('clearloop');
+  M.ldaImm(a, 0xff);
+  M.staAbs(a, OAMDATA);
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, OAMDATA);
+  M.staAbs(a, OAMDATA);
+  M.staAbs(a, OAMDATA);
+  M.dey(a);
+  M.bne(a, 'clearloop');
+
+  // Four frames out of every thirty-two, draw nothing at all.
+  M.ldaZp(a, FRAME);
+  M.andImm(a, 0x1f);
+  M.cmpImm(a, 4);
+  M.bcc(a, 'advance');
+
+  M.ldaZp(a, SLOT);
+  M.aslA(a);
+  M.aslA(a);
+  M.staAbs(a, OAMADDR);
+
+  M.ldaZp(a, POSE);
+  M.aslA(a);
+  M.aslA(a);
+  M.tax(a);
+
+  const emitSprite = (yValue, offsetX) => {
+    M.ldaImm(a, yValue);
+    M.staAbs(a, OAMDATA);
+    M.ldaAbsX(a, 'tiletable');
+    M.staAbs(a, OAMDATA);
+    M.ldaImm(a, 0x01);
+    M.staAbs(a, OAMDATA);
+    M.ldaZp(a, XPOS);
+    if (offsetX) {
+      M.clc(a);
+      M.adcImm(a, offsetX);
+    }
+    M.staAbs(a, OAMDATA);
+    M.inx(a);
+  };
+
+  emitSprite(99, 0);
+  emitSprite(99, 8);
+  emitSprite(115, 0);
+  emitSprite(115, 8);
+
+  // Remember where we drew, then rotate on to the next block of slots.
+  M.ldaZp(a, SLOT);
+  M.staZp(a, LAST_SLOT);
+
+  // Rotate by a full block of four, so consecutive frames share no slot at all.
+  a.label('advance');
+  M.ldaZp(a, SLOT);
+  M.clc(a);
+  M.adcImm(a, 4);
+  M.staZp(a, SLOT);
+  M.cmpImm(a, 16);
+  M.bne(a, 'slotok');
+  M.ldaImm(a, 0x00);
+  M.staZp(a, SLOT);
+  a.label('slotok');
+
+  M.jmp(a, 'main');
+
+  a.label('paltable');
+  a.db(palettes);
+  a.label('tiletable');
+  a.db(tiles);
+
+  return buildNROM(a.assemble(), chr);
+}
+
 const FIXTURES = {
   'solid.nes': buildSolid,
   'input.nes': buildInput,
@@ -679,6 +875,7 @@ const FIXTURES = {
   'banked.nes': buildBanked,
   'animation.nes': buildAnimation,
   'chrram.nes': buildChrRam,
+  'flicker.nes': buildFlicker,
 };
 
 fs.mkdirSync(OUT_DIR, { recursive: true });

@@ -201,6 +201,7 @@ program
   .option('--min-poses <n>', 'For animation: a clip needs at least this many distinct poses', '2')
   .option('--max-move <n>', 'For animation: pixels a character may move between frames', '24')
   .option('--max-clips <n>', 'For animation: how many characters to write', '10')
+  .option('--max-misses <n>', 'For animation: frames a character may vanish for before its clip ends', '12')
   .action((options) => {
     withSession((emulator) =>
       new SpritesCommand(emulator).execute({
@@ -224,7 +225,8 @@ program
         minHold: parseInt(options.minHold, 10),
         minPoses: parseInt(options.minPoses, 10),
         maxMove: parseInt(options.maxMove, 10),
-        maxClips: parseInt(options.maxClips, 10)
+        maxClips: parseInt(options.maxClips, 10),
+        maxMisses: parseInt(options.maxMisses, 10)
       })
     );
   });

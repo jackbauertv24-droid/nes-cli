@@ -1,0 +1,50 @@
+{
+  "id": 7,
+  "palette": 1,
+  "firstFrame": 1484,
+  "lastFrame": 1642,
+  "totalFrames": 12,
+  "poseCount": 2,
+  "cell": {
+    "width": 64,
+    "height": 64
+  },
+  "columns": 2,
+  "timeline": [
+    {
+      "pose": 0,
+      "frames": 6,
+      "startFrame": 1535,
+      "x": 151,
+      "y": 161,
+      "oam": [
+        25,
+        29,
+        33,
+        40,
+        44,
+        48,
+        59,
+        63
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 6,
+      "startFrame": 1599,
+      "x": 116,
+      "y": 113,
+      "oam": [
+        21,
+        25,
+        29,
+        36,
+        40,
+        44,
+        48,
+        55,
+        59
+      ]
+    }
+  ]
+}

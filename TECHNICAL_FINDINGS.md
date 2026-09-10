@@ -150,6 +150,31 @@ Whatever writes the WAV header has to use the same number the emulator was
 constructed with, or the file plays at the wrong pitch and misreports its
 length.
 
+## Following a character between frames
+
+Three signals are available and each fails on some cartridge.
+
+**OAM slots.** Many games keep a character in the same slots for as long as it
+lives, which makes slot overlap a strong identity signal. But games that draw
+more sprites than the PPU can show on a scanline rotate slots every frame, so
+that the object dropped by the hardware differs each time and everything appears
+to flicker rather than one object vanishing. Castlevania does this: Simon's
+slots run `[19,23,38,53]`, `[17,21,36,51,55]`, `[20,24,31,35,…]` on consecutive
+frames. Overlap is zero, permanently.
+
+**Palette.** A good hint, and a bad rule. A group's dominant palette depends on
+what is in the group, and a character's own attachments may use another palette
+- Simon is palette 0, his whip is a chain of palette-1 sprites, and when the
+whip is out the combined group's majority flips.
+
+**Position.** Always available, and the only one that survives both. Use it as
+the gate and the other two as preferences: require a candidate to be within
+reach, then prefer shared slots and a matching palette among those that are.
+
+Make the reach grow while a character is missing. Games drop sprites when the
+screen is busy - Castlevania's demo loses Simon for six to twelve frames at a
+time - and a character keeps moving while it is not being drawn.
+
 ## Grouping sprites into characters
 
 Characters are several hardware sprites side by side, so grouping by proximity

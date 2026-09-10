@@ -1,0 +1,54 @@
+{
+  "id": 2,
+  "palette": 0,
+  "firstFrame": 1945,
+  "lastFrame": 2020,
+  "totalFrames": 40,
+  "poseCount": 3,
+  "cell": {
+    "width": 32,
+    "height": 32
+  },
+  "columns": 3,
+  "timeline": [
+    {
+      "pose": 0,
+      "frames": 4,
+      "startFrame": 1967,
+      "x": 120,
+      "y": 129,
+      "oam": [
+        18,
+        33,
+        48,
+        63
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 16,
+      "startFrame": 1971,
+      "x": 120,
+      "y": 169,
+      "oam": [
+        22,
+        37,
+        41,
+        56
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 20,
+      "startFrame": 1987,
+      "x": 120,
+      "y": 177,
+      "oam": [
+        27,
+        31,
+        46,
+        61
+      ]
+    }
+  ]
+}

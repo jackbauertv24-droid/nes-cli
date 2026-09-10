@@ -1,0 +1,37 @@
+{
+  "id": 8,
+  "palette": 3,
+  "firstFrame": 1101,
+  "lastFrame": 1111,
+  "totalFrames": 11,
+  "poseCount": 2,
+  "cell": {
+    "width": 12,
+    "height": 24
+  },
+  "columns": 2,
+  "timeline": [
+    {
+      "pose": 0,
+      "frames": 4,
+      "startFrame": 1101,
+      "x": 152,
+      "y": 129,
+      "oam": [
+        30,
+        49
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 7,
+      "startFrame": 1105,
+      "x": 152,
+      "y": 129,
+      "oam": [
+        23,
+        38
+      ]
+    }
+  ]
+}

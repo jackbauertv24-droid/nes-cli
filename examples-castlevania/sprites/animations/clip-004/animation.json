@@ -1,0 +1,117 @@
+{
+  "id": 4,
+  "palette": 3,
+  "firstFrame": 827,
+  "lastFrame": 887,
+  "totalFrames": 27,
+  "poseCount": 3,
+  "cell": {
+    "width": 16,
+    "height": 32
+  },
+  "columns": 8,
+  "timeline": [
+    {
+      "pose": 0,
+      "frames": 9,
+      "startFrame": 827,
+      "x": 24,
+      "y": 129,
+      "oam": [
+        25,
+        59
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 2,
+      "startFrame": 843,
+      "x": 32,
+      "y": 161,
+      "oam": [
+        22,
+        37,
+        41,
+        56
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 2,
+      "startFrame": 847,
+      "x": 32,
+      "y": 161,
+      "oam": [
+        28,
+        43,
+        58,
+        62
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 2,
+      "startFrame": 851,
+      "x": 32,
+      "y": 161,
+      "oam": [
+        17,
+        32,
+        36,
+        51
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 2,
+      "startFrame": 855,
+      "x": 32,
+      "y": 161,
+      "oam": [
+        23,
+        38,
+        53,
+        57
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 2,
+      "startFrame": 859,
+      "x": 32,
+      "y": 161,
+      "oam": [
+        27,
+        31,
+        46,
+        61
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 2,
+      "startFrame": 863,
+      "x": 32,
+      "y": 161,
+      "oam": [
+        18,
+        33,
+        48,
+        52
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 6,
+      "startFrame": 867,
+      "x": 32,
+      "y": 161,
+      "oam": [
+        22,
+        26,
+        41,
+        56
+      ]
+    }
+  ]
+}

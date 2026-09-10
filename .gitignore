@@ -1,51 +1,26 @@
 node_modules/
+
+# Emulator state written by `nes-cli load`
 .nes-cli-session.json
+
+# Cartridge dumps never belong in the repository. The only exception is the
+# fixture ROMs, which are our own 6502 programs built by tools/make-fixtures.js.
 *.nes
 !test/fixtures/*.nes
-smb3.nes
 rom/
 quickshare_received/
-test_*.png
-test_*.gif
-test_*.wav
-test_*.txt
-test_*.ansi
-out*.png
-ascii_test.txt
-audio_test.wav
-gif_test.gif
-test_frame.png
-frames/
-sprites/
-test_sprites/
 
-# Keep package files
-!package.json
-!package-lock.json
-!README.md
-
-# Keep examples folder and all its contents
-!examples/
-!examples/*.gif
-!examples/*.wav
-!examples/*.png
-!examples/*.txt
-!examples/*.ansi
-!examples/*.md
-!examples/sprites/
-!examples/sprites/*.json
-!examples/sprites/chr/
-!examples/sprites/chr/*.png
-!examples/sprites/oam/
-!examples/sprites/oam/*.png
-!examples/sprites_gameplay/
-!examples/sprites_gameplay/*.json
-!examples/sprites_gameplay/chr/
-!examples/sprites_gameplay/chr/*.png
-!examples/sprites_gameplay/oam/
-!examples/sprites_gameplay/oam/*.png
-# Keep the test suite and the fixture generator
-!test/
-!test/**
-!tools/
-!tools/**
+# Default output paths, anchored to the repository root so they only cover
+# files dropped here by running the tool. Without the leading slash these
+# would also swallow examples-*/sprites/, which is why this file used to carry
+# a long list of exceptions.
+/sprites/
+/frames/
+/animations/
+/out/
+/*.gif
+/*.wav
+/*.ansi
+/screenshot*.png
+/recording*.png
+/state.json

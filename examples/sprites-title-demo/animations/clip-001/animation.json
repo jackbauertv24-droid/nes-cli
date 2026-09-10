@@ -2,9 +2,9 @@
   "id": 1,
   "palette": 1,
   "firstFrame": 104,
-  "lastFrame": 261,
-  "totalFrames": 158,
-  "poseCount": 4,
+  "lastFrame": 356,
+  "totalFrames": 241,
+  "poseCount": 6,
   "cell": {
     "width": 16,
     "height": 32
@@ -243,6 +243,93 @@
         11,
         13,
         14
+      ]
+    },
+    {
+      "pose": 3,
+      "frames": 24,
+      "startFrame": 273,
+      "x": 132,
+      "y": 117,
+      "oam": [
+        10,
+        11,
+        13,
+        14
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 43,
+      "startFrame": 298,
+      "x": 168,
+      "y": 2,
+      "oam": [
+        10,
+        11,
+        13,
+        14
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 4,
+      "startFrame": 341,
+      "x": 233,
+      "y": 161,
+      "oam": [
+        10,
+        11,
+        13,
+        14
+      ]
+    },
+    {
+      "pose": 0,
+      "frames": 4,
+      "startFrame": 345,
+      "x": 239,
+      "y": 161,
+      "oam": [
+        10,
+        11,
+        13,
+        14
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 2,
+      "startFrame": 349,
+      "x": 245,
+      "y": 161,
+      "oam": [
+        10,
+        11,
+        13,
+        14
+      ]
+    },
+    {
+      "pose": 4,
+      "frames": 2,
+      "startFrame": 351,
+      "x": 248,
+      "y": 161,
+      "oam": [
+        10,
+        13
+      ]
+    },
+    {
+      "pose": 5,
+      "frames": 4,
+      "startFrame": 353,
+      "x": 251,
+      "y": 161,
+      "oam": [
+        10,
+        13
       ]
     }
   ]

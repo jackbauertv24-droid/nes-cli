@@ -27,6 +27,7 @@ const { PNG } = require('pngjs');
 const romPath = process.argv[2];
 if (!romPath || !fs.existsSync(romPath)) {
   console.error('Usage: node tools/make-examples.js <path to smb3.nes>');
+  console.error('       node tools/make-castlevania-examples.js <path to castlevania.nes>');
   process.exit(1);
 }
 

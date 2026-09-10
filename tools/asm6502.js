@@ -136,6 +136,7 @@ const M = {
   bpl: (a, l) => a.rel(0x10, l),
   bne: (a, l) => a.rel(0xd0, l),
   beq: (a, l) => a.rel(0xf0, l),
+  bcc: (a, l) => a.rel(0x90, l),
 };
 
 /**

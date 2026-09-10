@@ -183,11 +183,18 @@ is recorded in the JSON rather than baked into the image.
                   "oam": [8, 9, 11, 12] }, ... ] }
 ```
 
-Identity is decided strongest-signal-first: a candidate must share the
-character's palette; overlapping OAM slots are strong evidence, since games
-usually keep a character in the same slots for as long as it exists; failing
-that, the nearest centre within `--max-move`. The position fallback is what
-carries games that re-sort OAM to spread sprite flicker.
+Identity uses three signals, none of which can be trusted alone. Overlapping OAM
+slots are strong evidence where they exist - SMB3 keeps Luigi in the same four
+slots for fifty frames - but plenty of games rotate slots every frame to spread
+sprite flicker, and Castlevania is one, so overlap there is always zero. Palette
+is a good hint but a bad rule, because a cluster's dominant palette changes with
+its contents: Simon Belmont is palette 0 and his whip palette 1, so the majority
+flips whenever he attacks.
+
+So position is the gate and the other two are preferences. A candidate has to be
+within `--max-move`, and among those that are, shared slots and a matching
+palette decide which is which. The reach grows while a character is missing,
+since it does not stop moving just because it stopped being drawn.
 
 | Option | Default | Effect |
 |---|---|---|
@@ -195,6 +202,7 @@ carries games that re-sort OAM to spread sprite flicker.
 | `--min-poses <n>` | 2 | A clip needs this many distinct poses; below it, the character was standing still |
 | `--max-move <n>` | 24 | Pixels a character may move between frames and still be the same one |
 | `--max-clips <n>` | 10 | How many characters to write, most frames on screen first |
+| `--max-misses <n>` | 12 | Frames a character may vanish for before its clip ends - games drop sprites when too many share a scanline |
 
 Poses are in temporal order, but no attempt is made to find the repeating cycle
 within them. On SMB3's title demo Mario's clip reads
@@ -259,9 +267,14 @@ test/                 jest suite and generated fixture ROMs
 
 ## Regenerating the examples
 
-`examples/` is generated from a Super Mario Bros. 3 cartridge dump, which is not
-in this repository. Point the generator at your own copy:
+Both example sets are generated from cartridge dumps, which are not in this
+repository. Point the generators at your own copies:
 
 ```bash
 node tools/make-examples.js /path/to/smb3.nes
+node tools/make-castlevania-examples.js /path/to/castlevania.nes
 ```
+
+`examples/` is SMB3 - MMC3, CHR-ROM, bank switching mid-frame.
+`examples-castlevania/` is Castlevania - UNROM, CHR-RAM, characters rotated
+through the sprite table every frame. They exercise almost opposite paths.

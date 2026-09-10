@@ -10,11 +10,14 @@ const DEFAULTS = {
   // A track showing only one pose is a stationary object, not an animation.
   minPoses: 2,
   // How far a character may move between two frames and still be the same one.
-  // A fast NES character covers a few pixels per frame; 24 is generous.
+  // A fast NES character covers a few pixels per frame; 24 is generous. The
+  // allowance grows while a character is missing, since it keeps moving.
   maxMove: 24,
   // How many frames a character may be absent before its clip is closed.
-  // Games blink sprites during invulnerability, so one or two is normal.
-  maxMisses: 2,
+  // Games drop sprites when too many share a scanline, and Castlevania's demo
+  // loses Simon for six to twelve frames at a time, so this has to be forgiving
+  // enough to ride that out without stitching two different characters together.
+  maxMisses: 12,
   maxClips: 10,
   columns: 16
 };
@@ -29,11 +32,24 @@ const DEFAULTS = {
  * those groups *across* frames - to know that the character in frame 101 is the
  * one from frame 100 - which is what makes an ordered timeline possible.
  *
- * Identity is decided in three steps, strongest signal first: a candidate must
- * share the character's sprite palette; then overlapping OAM slots are strong
- * evidence, because games usually keep a character in the same slots for as
- * long as it exists; and failing that, the nearest centre within maxMove. The
- * position fallback is what carries games that re-sort OAM to spread flicker.
+ * Identity is decided by three signals, none of which can be trusted alone.
+ *
+ * Overlapping OAM slots are strong evidence where they exist, because many
+ * games keep a character in the same slots for as long as it lives - Luigi held
+ * slots 10, 11, 13 and 14 for fifty frames of SMB3's title demo. But plenty of
+ * games rotate slots every frame to spread sprite flicker evenly, and
+ * Castlevania is one: Simon's slots run [19,23,38,53] then [17,21,36,51,55]
+ * then [20,24,31,35,...] on consecutive frames, so overlap there is zero.
+ *
+ * Palette is a good hint but a bad rule. A character's dominant palette changes
+ * when its cluster composition does - Simon is palette 0, his whip is palette 1,
+ * and when the whip is out the combined cluster's majority flips. Treating
+ * palette as a veto loses the character every time he attacks.
+ *
+ * So position is the gate and the other two are preferences: a candidate has to
+ * be within reach, and among those that are, shared slots and a matching
+ * palette decide which is which. The reach grows while a character is missing,
+ * because it does not stop moving just because it stopped being drawn.
  */
 class AnimationTracker {
   constructor(emulator, options = {}) {
@@ -87,21 +103,20 @@ class AnimationTracker {
 
   /** Score how well a group could be the continuation of a track. Null if not. */
   matchScore(track, group) {
-    if (track.palette !== group.palette) {
-      return null;
-    }
-
     const overlap = group.oam.filter((id) => track.oam.includes(id)).length;
     const distance = Math.hypot(group.centreX - track.centreX, group.centreY - track.centreY);
 
-    // Shared OAM slots outweigh distance: a character that teleports across the
-    // screen but keeps its slots is still that character, while two identical
-    // enemies standing near each other are not.
-    if (overlap === 0 && distance > this.maxMove) {
+    // A character absent for several frames has had several frames in which to
+    // move, so the allowance grows with the gap.
+    const reach = this.maxMove * (track.misses + 1);
+
+    // Shared slots override the distance gate: a character that jumps across
+    // the screen but keeps its slots is still that character.
+    if (overlap === 0 && distance > reach) {
       return null;
     }
 
-    return { overlap, distance };
+    return { overlap, distance, samePalette: track.palette === group.palette };
   }
 
   /** Attach this frame's groups to open tracks, greedily, best match first. */
@@ -115,7 +130,15 @@ class AnimationTracker {
       }
     }
 
-    pairs.sort((a, b) => b.overlap - a.overlap || a.distance - b.distance);
+    // Same-palette pairs are claimed first, so two adjacent characters of
+    // different colours settle onto the right tracks before anything else is
+    // allowed to match on position alone.
+    pairs.sort(
+      (a, b) =>
+        Number(b.samePalette) - Number(a.samePalette) ||
+        b.overlap - a.overlap ||
+        a.distance - b.distance
+    );
 
     const usedTracks = new Set();
     const usedGroups = new Set();
@@ -140,6 +163,7 @@ class AnimationTracker {
     const track = {
       id: this.nextTrackId++,
       palette: group.palette,
+      paletteTally: new Map(),
       firstFrame: frameNumber,
       lastFrame: frameNumber,
       misses: 0,
@@ -160,6 +184,11 @@ class AnimationTracker {
     track.oam = group.oam;
     track.centreX = group.centreX;
     track.centreY = group.centreY;
+
+    // Report the palette the character wore for most of its life, rather than
+    // whatever it happened to be showing on the frame it was first seen.
+    track.paletteTally.set(group.palette, (track.paletteTally.get(group.palette) || 0) + 1);
+    track.palette = [...track.paletteTally.entries()].sort((a, b) => b[1] - a[1])[0][0];
 
     // A pose has to be rendered while its own frame is current: on a mapper
     // that re-banks CHR, the tiles it refers to are only in place now.

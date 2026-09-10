@@ -1,0 +1,87 @@
+{
+  "id": 5,
+  "palette": 1,
+  "firstFrame": 1563,
+  "lastFrame": 1643,
+  "totalFrames": 24,
+  "poseCount": 5,
+  "cell": {
+    "width": 32,
+    "height": 32
+  },
+  "columns": 5,
+  "timeline": [
+    {
+      "pose": 0,
+      "frames": 2,
+      "startFrame": 1563,
+      "x": 104,
+      "y": 161,
+      "oam": [
+        27,
+        42,
+        57,
+        61
+      ]
+    },
+    {
+      "pose": 1,
+      "frames": 4,
+      "startFrame": 1567,
+      "x": 104,
+      "y": 161,
+      "oam": [
+        20,
+        31,
+        35,
+        50
+      ]
+    },
+    {
+      "pose": 2,
+      "frames": 6,
+      "startFrame": 1594,
+      "x": 120,
+      "y": 161,
+      "oam": [
+        20,
+        24,
+        39,
+        54
+      ]
+    },
+    {
+      "pose": 3,
+      "frames": 5,
+      "startFrame": 1600,
+      "x": 104,
+      "y": 161,
+      "oam": [
+        17,
+        21,
+        28,
+        32,
+        36,
+        47,
+        51,
+        62
+      ]
+    },
+    {
+      "pose": 4,
+      "frames": 7,
+      "startFrame": 1605,
+      "x": 104,
+      "y": 161,
+      "oam": [
+        19,
+        23,
+        27,
+        38,
+        42,
+        53,
+        57
+      ]
+    }
+  ]
+}

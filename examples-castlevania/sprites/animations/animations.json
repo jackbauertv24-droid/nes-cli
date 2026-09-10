@@ -1,0 +1,82 @@
+[
+  {
+    "id": 0,
+    "directory": "clip-000",
+    "palette": 0,
+    "poseCount": 17,
+    "cells": 47,
+    "totalFrames": 395
+  },
+  {
+    "id": 1,
+    "directory": "clip-001",
+    "palette": 0,
+    "poseCount": 3,
+    "cells": 6,
+    "totalFrames": 47
+  },
+  {
+    "id": 2,
+    "directory": "clip-002",
+    "palette": 0,
+    "poseCount": 3,
+    "cells": 3,
+    "totalFrames": 40
+  },
+  {
+    "id": 3,
+    "directory": "clip-003",
+    "palette": 0,
+    "poseCount": 4,
+    "cells": 6,
+    "totalFrames": 31
+  },
+  {
+    "id": 4,
+    "directory": "clip-004",
+    "palette": 3,
+    "poseCount": 3,
+    "cells": 8,
+    "totalFrames": 27
+  },
+  {
+    "id": 5,
+    "directory": "clip-005",
+    "palette": 1,
+    "poseCount": 5,
+    "cells": 5,
+    "totalFrames": 24
+  },
+  {
+    "id": 6,
+    "directory": "clip-006",
+    "palette": 1,
+    "poseCount": 2,
+    "cells": 2,
+    "totalFrames": 15
+  },
+  {
+    "id": 7,
+    "directory": "clip-007",
+    "palette": 1,
+    "poseCount": 2,
+    "cells": 2,
+    "totalFrames": 12
+  },
+  {
+    "id": 8,
+    "directory": "clip-008",
+    "palette": 3,
+    "poseCount": 2,
+    "cells": 2,
+    "totalFrames": 11
+  },
+  {
+    "id": 9,
+    "directory": "clip-009",
+    "palette": 1,
+    "poseCount": 2,
+    "cells": 2,
+    "totalFrames": 6
+  }
+]

@@ -214,7 +214,37 @@ Identity now includes a hash of the tile bytes themselves. For a CHR-ROM game,
 where the index does determine the art, this agrees with the old key - the SMB3
 examples regenerate identically.
 
-### 10. Smaller defects
+### 10. Identity cannot rest on OAM slots, or on palette
+
+Found by running the finished tracker against a real Castlevania cartridge.
+Clips kept breaking: the longest was 93 frames out of a 1380-frame demo.
+
+Two assumptions were wrong. The first was that a character keeps its OAM slots.
+Luigi held slots 10, 11, 13 and 14 for fifty frames of SMB3's title demo, which
+made slot overlap look like a dependable signal. Castlevania rotates every
+character through a fresh block of slots on every frame - Simon's run
+`[19,23,38,53]`, `[17,21,36,51,55]`, `[20,24,31,35,…]` - so overlap between
+consecutive frames is exactly zero. That is deliberate: rotating slots spreads
+sprite flicker so no one object is always the one dropped.
+
+The second was treating palette as a hard requirement. A cluster's dominant
+palette depends on what is in it, and Simon's whip is a chain of palette-1
+sprites. When he attacks, the whip joins his cluster and the majority flips, so
+a palette gate loses him on every swing.
+
+Position is now the gate and the other two are preferences: a candidate has to
+be within reach, and among those that are, shared slots and a matching palette
+decide which is which. The reach grows while a character is missing, since it
+does not stop moving just because it stopped being drawn - and Castlevania's
+demo drops Simon for six to twelve frames at a time when the screen is busy, so
+`maxMisses` went from 2 to 12.
+
+Simon's clip went from 16 cells over 93 frames to 47 cells over 395, with 17
+distinct poses. SMB3 improved too, which is the useful confirmation: Luigi had
+been split into two clips of 158 and 83 frames by exactly this kind of gap, and
+is now a single clip of 241.
+
+### 11. Smaller defects
 
 | Defect | Effect |
 |---|---|
@@ -229,7 +259,7 @@ examples regenerate identically.
 | Save-state "slots" held in an in-memory `Map` | always empty, since every command is a new process |
 | Metasprite filter hardcoded `screenY > 140 && palette in {0,1}` | SMB3 title-screen tuning baked into library code |
 
-### 11. One trap that was not a bug, and now cannot become one
+### 12. One trap that was not a bug, and now cannot become one
 
 `emulator.js` called `ppu.palTable.loadDefaultPalette()` after every ROM load.
 jsnes deliberately leaves that call commented out in its own constructor,
@@ -249,7 +279,20 @@ rather than `(219,43,0)` - because the NTSC palette is the more accurate one.
 
 ---
 
-## Validation against a real cartridge
+## Validation against real cartridges
+
+Two were used, and each exposed something the other could not.
+
+**Super Mario Bros. 3** (mapper 4, MMC3, CHR-ROM) produced findings 7 and 8.
+**Castlevania** (mapper 2, UNROM, CHR-RAM) produced findings 9 and 10 - a
+cartridge with no tile data in the file at all, which animates by rewriting
+tiles in place and rotates its characters through the sprite table every frame.
+Between them they cover most of what a NES cartridge can do to an extractor.
+
+Both are now reproduced by synthetic fixtures, so none of it depends on having
+a commercial ROM to hand.
+
+### Super Mario Bros. 3
 
 The rewrite was checked end to end against a Super Mario Bros. 3 dump (mapper 4,
 MMC3). That run is what produced findings 7 and 8, neither of which the NROM
@@ -274,6 +317,13 @@ RIGHT; UP; A                         -> level 1-1
 
 `tools/make-examples.js` automates it and regenerates `examples/`.
 
+### Castlevania
+
+No input at all. Left alone the game cycles between its title screen and a
+playable demo of Stage 12; the demo runs frames 703 to 2096, boundaries found by
+watching for the status bar sprite on row 23, which exists only during it.
+`tools/make-castlevania-examples.js` regenerates `examples-castlevania/`.
+
 ## Test fixtures
 
 The suite needs ROMs, and commercial dumps cannot live in a public repository.
@@ -289,6 +339,7 @@ assembler in `tools/asm6502.js`:
 | `banked.nes` | an MMC3 cartridge that swaps the CHR bank at $1000 partway down every frame, so the same tile index is different art at the top and bottom of the screen - pins finding 7 |
 | `animation.nes` | a 16x32 character cycling three poses every eight frames while walking right - pins cross-frame tracking, hold durations and strip ordering |
 | `chrram.nes` | a cartridge with no CHR-ROM that animates by rewriting tile data while the OAM tile byte never changes - pins finding 9 |
+| `flicker.nes` | the same walking character, rotated through a fresh block of OAM slots every frame and not drawn at all for four frames in every thirty-two - pins finding 10 |
 
 Regenerate with `npm run fixtures`.
 

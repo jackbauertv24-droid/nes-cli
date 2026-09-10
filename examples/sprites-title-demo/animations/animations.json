@@ -11,16 +11,8 @@
     "id": 1,
     "directory": "clip-001",
     "palette": 1,
-    "poseCount": 4,
-    "cells": 18,
-    "totalFrames": 158
-  },
-  {
-    "id": 2,
-    "directory": "clip-002",
-    "palette": 1,
     "poseCount": 6,
-    "cells": 7,
-    "totalFrames": 83
+    "cells": 25,
+    "totalFrames": 241
   }
 ]
