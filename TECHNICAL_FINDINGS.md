@@ -28,6 +28,20 @@ games, which have no CHR data in the ROM file at all.
 live in pattern table 1, which is `ptTile[i + 256]`. Indexing `ptTile[i]` for a
 sprite tile reads the background table and generally finds blanks.
 
+## Tile data can be RAM
+
+Not every cartridge carries tile data. UNROM boards - Castlevania, Mega Man,
+Metal Gear and plenty more - have no CHR-ROM at all: the pattern tables are RAM,
+and the game uploads tiles through $2007 as it runs. Nothing in the ROM file
+holds the art, so any extraction that reads the file finds nothing.
+
+This also changes what "animation" looks like. A CHR-ROM game animates by
+pointing a sprite at different tile indices; a CHR-RAM game usually animates by
+rewriting the tile data underneath a *fixed* index. So a pose identity built
+from tile numbers, offsets and attributes will see one unchanging pose through
+an entire walk cycle. Identity has to include what the tile actually contains -
+hash the bytes.
+
 ## Sample the pattern tables at the right scanline, not at the frame boundary
 
 Reading pattern memory once per frame is still not enough, because bank
@@ -41,11 +55,18 @@ The consequence is blunt: once a frame has finished, the playfield's tiles are
 gone. Pattern table 1, where SMB3 keeps its character tiles, reads as entirely
 zero, and every character extracts as a blank image.
 
-So snapshot pattern memory whenever the banks change, tag each snapshot with
-the scanline it took effect on, and when extracting a sprite ask for the
-snapshot covering that sprite's own row. In jsnes, wrap `mmap.loadVromBank`,
-`load1kVromBank` and `load2kVromBank`; screen row 0 is scanline 21, so
+So snapshot pattern memory whenever it changes, tag each snapshot with the
+scanline it took effect on, and when extracting a sprite ask for the snapshot
+covering that sprite's own row. In jsnes, wrap `mmap.loadVromBank`,
+`load1kVromBank` and `load2kVromBank` for bank switching, and `ppu.writeMem`
+below $2000 for CHR-RAM writes; screen row 0 is scanline 21, so
 `scanline = screenY + 21`.
+
+Take those snapshots lazily. A CHR-RAM tile upload is thousands of consecutive
+byte writes, and copying 8KB on each one costs tens of megabytes a frame. Copy
+on the first change of a *new* scanline instead: at that moment the current
+contents are exactly the finished state of the previous scanline. One copy per
+scanline that changed, no matter how many bytes moved.
 
 The same applies to dumping the pattern tables wholesale: "the CHR" is not one
 thing, it is a thing that depends on where down the screen you look.

@@ -63,6 +63,7 @@ class Emulator {
   frame() {
     this.chrRecorder.beginFrame();
     this.nes.frame();
+    this.chrRecorder.endFrame();
   }
 
   stepFrame() {
@@ -199,6 +200,30 @@ class Emulator {
     }
 
     return pixels;
+  }
+
+  /**
+   * A fingerprint of one tile's data, for telling poses apart by appearance.
+   *
+   * Tile *indices* are not a reliable identity. A CHR-RAM cartridge animates by
+   * rewriting tile data in place while the index stays put, so two quite
+   * different frames of a walk cycle can share every index. Hashing the bytes
+   * catches that; for a CHR-ROM game, where an index does determine the art, it
+   * simply agrees with the index.
+   */
+  getPatternTileHash(table, index, screenY) {
+    const base = (table & 1) * 0x1000 + (index & 0xff) * 16;
+    const recorded = screenY == null ? null : this.chrRecorder.chrForScreenRow(screenY);
+    const vram = recorded || this.nes.ppu.vramMem;
+
+    // FNV-1a over the tile's sixteen bytes.
+    let hash = 2166136261;
+    for (let i = 0; i < 16; i++) {
+      hash ^= vram[base + i] || 0;
+      hash = Math.imul(hash, 16777619);
+    }
+
+    return hash >>> 0;
   }
 
   is8x16Sprites() {

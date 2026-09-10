@@ -184,7 +184,37 @@ large to be a character, and `--max-sprites` (default 16) rejects piles. The
 PPU can only draw eight sprites per scanline, so a real composite character is
 a handful.
 
-### 9. Smaller defects
+### 9. CHR-RAM cartridges were unsupported in two ways
+
+Found while preparing for a Castlevania ROM rather than from a bug report.
+Castlevania is UNROM (mapper 2) with **CHR-RAM**: the cartridge carries no tile
+data at all, and the game writes it into PPU memory at runtime. Two things were
+wrong for that whole class of cartridge.
+
+The recorder only wrapped the mapper's bank-loading routines, which a CHR-RAM
+game never calls. Its record of a frame was therefore a single snapshot taken
+before the frame ran. It now also wraps `ppu.writeMem` for addresses below
+$2000, which is where $2007 writes to tile memory land.
+
+Snapshotting on every such write would be ruinous - a tile upload is thousands
+of consecutive byte writes, and copying 8KB for each would cost tens of
+megabytes a frame. Snapshots are taken lazily instead: on the first change of a
+*new* scanline, at which point the current contents are exactly the finished
+state of the previous one. One copy per scanline that saw changes, however many
+bytes were written.
+
+The second problem was subtler and would have produced empty output rather than
+an error. Pose identity was built from tile indices, offsets and attributes. A
+CHR-RAM game animates by rewriting tile data while the index stays fixed, so
+every frame of a walk cycle shares an identical key and collapses into one
+pose. Verified against a fixture: before the fix the tracker found zero
+animations in a character that visibly alternates between two forms.
+
+Identity now includes a hash of the tile bytes themselves. For a CHR-ROM game,
+where the index does determine the art, this agrees with the old key - the SMB3
+examples regenerate identically.
+
+### 10. Smaller defects
 
 | Defect | Effect |
 |---|---|
@@ -199,7 +229,7 @@ a handful.
 | Save-state "slots" held in an in-memory `Map` | always empty, since every command is a new process |
 | Metasprite filter hardcoded `screenY > 140 && palette in {0,1}` | SMB3 title-screen tuning baked into library code |
 
-### 10. One trap that was not a bug, and now cannot become one
+### 11. One trap that was not a bug, and now cannot become one
 
 `emulator.js` called `ppu.palTable.loadDefaultPalette()` after every ROM load.
 jsnes deliberately leaves that call commented out in its own constructor,
@@ -258,6 +288,7 @@ assembler in `tools/asm6502.js`:
 | `metasprite.nes` | a 16x32 character from four adjacent sprites, plus a lone HUD sprite - pins clustering and the filters |
 | `banked.nes` | an MMC3 cartridge that swaps the CHR bank at $1000 partway down every frame, so the same tile index is different art at the top and bottom of the screen - pins finding 7 |
 | `animation.nes` | a 16x32 character cycling three poses every eight frames while walking right - pins cross-frame tracking, hold durations and strip ordering |
+| `chrram.nes` | a cartridge with no CHR-ROM that animates by rewriting tile data while the OAM tile byte never changes - pins finding 9 |
 
 Regenerate with `npm run fixtures`.
 

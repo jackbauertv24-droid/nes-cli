@@ -148,7 +148,8 @@ Sprites are composited from pattern-table colour indices, never scraped from
 the rendered screen, so extracted images contain no background and colour index
 0 is genuinely transparent. Tiles are read as they were banked on each sprite's
 own scanline, which is what makes this work on cartridges that swap CHR mid
-frame. See `TECHNICAL_FINDINGS.md`.
+frame - and on CHR-RAM cartridges, which carry no tile data in the ROM at all
+and animate by rewriting tiles in place. See `TECHNICAL_FINDINGS.md`.
 
 #### Animation
 

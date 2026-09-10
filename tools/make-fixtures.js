@@ -539,6 +539,138 @@ function buildAnimation() {
   return buildNROM(a.assemble(), chr);
 }
 
+/**
+ * chrram.nes - a cartridge with no CHR-ROM, animating by rewriting tiles.
+ *
+ * The iNES header declares zero CHR pages, so the PPU's pattern tables are RAM
+ * and start empty; the program uploads tile data through $2007 itself. This is
+ * how UNROM cartridges work - Castlevania among them - and it is a completely
+ * different path from CHR bank switching: the mapper's bank routines are never
+ * called at all.
+ *
+ * One 8x16 sprite sits at (64, 100) and its OAM tile byte never changes. What
+ * changes is the tile data underneath it, rewritten every 16 frames to
+ * alternate between a filled block and a hollow ring. Extraction that reads the
+ * ROM file, or that only watches the mapper, sees nothing here.
+ */
+function buildChrRam() {
+  const solid = [];
+  const hollow = [];
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const edge = x === 0 || x === 7 || y === 0 || y === 7;
+      solid.push(edge ? 1 : 3);
+      hollow.push(edge ? 2 : 0);
+    }
+  }
+  // Tiles 4 and 5 of pattern table 1, so 32 bytes per pose.
+  const artA = [...encodeTile(solid), ...encodeTile(solid)];
+  const artB = [...encodeTile(hollow), ...encodeTile(hollow)];
+
+  const palettes = [
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+    0x21, 0x16, 0x2a, 0x30, 0x21, 0x12, 0x27, 0x30,
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+  ];
+
+  const FRAME = 0x10;
+  const a = new Assembler(0xc000);
+
+  /** Upload 32 bytes from a table into $1040, where tiles 4 and 5 live. */
+  const upload = (table, loopLabel) => {
+    setPpuAddr(a, 0x1040);
+    M.ldxImm(a, 0x00);
+    a.label(loopLabel);
+    M.ldaAbsX(a, table);
+    M.staAbs(a, PPUDATA);
+    M.inx(a);
+    M.cpxImm(a, 0x20);
+    M.bne(a, loopLabel);
+  };
+
+  resetPreamble(a);
+
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, PPUCTRL);
+  M.staAbs(a, PPUMASK);
+  M.staZp(a, FRAME);
+
+  setPpuAddr(a, 0x3f00);
+  M.ldxImm(a, 0x00);
+  a.label('palloop');
+  M.ldaAbsX(a, 'paltable');
+  M.staAbs(a, PPUDATA);
+  M.inx(a);
+  M.cpxImm(a, palettes.length);
+  M.bne(a, 'palloop');
+
+  // Park every sprite, then place the one that matters.
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, OAMADDR);
+  M.ldyImm(a, 64);
+  a.label('parkloop');
+  M.ldaImm(a, 0xff);
+  M.staAbs(a, OAMDATA);
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, OAMDATA);
+  M.staAbs(a, OAMDATA);
+  M.staAbs(a, OAMDATA);
+  M.dey(a);
+  M.bne(a, 'parkloop');
+
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, OAMADDR);
+  M.ldaImm(a, 99); // screen row 100
+  M.staAbs(a, OAMDATA);
+  M.ldaImm(a, 0x05); // pattern table 1, tiles 4 and 5 - never changes
+  M.staAbs(a, OAMDATA);
+  M.ldaImm(a, 0x01); // sprite palette 1
+  M.staAbs(a, OAMDATA);
+  M.ldaImm(a, 64);
+  M.staAbs(a, OAMDATA);
+
+  M.ldaImm(a, 0x20); // 8x16 sprites
+  M.staAbs(a, PPUCTRL);
+  M.ldaImm(a, 0x1e);
+  M.staAbs(a, PPUMASK);
+
+  a.label('main');
+  a.label('waitvb');
+  M.bitAbs(a, PPUSTATUS);
+  M.bpl(a, 'waitvb');
+
+  M.incZp(a, FRAME);
+  M.ldaZp(a, FRAME);
+  M.andImm(a, 0x10); // bit 4 flips every 16 frames
+  M.beq(a, 'useA');
+
+  upload('artbtable', 'bloop');
+  M.jmp(a, 'settle');
+
+  a.label('useA');
+  upload('artatable', 'aloop');
+
+  a.label('settle');
+  // Put the address latch and scroll back somewhere harmless.
+  setPpuAddr(a, 0x0000);
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, PPUSCROLL);
+  M.staAbs(a, PPUSCROLL);
+
+  M.jmp(a, 'main');
+
+  a.label('paltable');
+  a.db(palettes);
+  a.label('artatable');
+  a.db(artA);
+  a.label('artbtable');
+  a.db(artB);
+
+  // Zero CHR pages: the pattern tables are RAM.
+  return buildNROM(a.assemble(), Buffer.alloc(0));
+}
+
 const FIXTURES = {
   'solid.nes': buildSolid,
   'input.nes': buildInput,
@@ -546,6 +678,7 @@ const FIXTURES = {
   'metasprite.nes': buildMetasprite,
   'banked.nes': buildBanked,
   'animation.nes': buildAnimation,
+  'chrram.nes': buildChrRam,
 };
 
 fs.mkdirSync(OUT_DIR, { recursive: true });

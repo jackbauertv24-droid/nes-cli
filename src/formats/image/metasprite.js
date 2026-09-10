@@ -253,6 +253,21 @@ class MetaspriteAnalyzer {
     return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
   }
 
+  /** Fingerprint of what a sprite actually looks like right now. */
+  spriteArtHash(sprite) {
+    const { table, tiles } = this.emulator.resolveSpriteTiles(sprite.tile);
+    let hash = 0;
+
+    for (const tile of tiles) {
+      hash =
+        (Math.imul(hash, 31) +
+          this.emulator.getPatternTileHash(table, tile, sprite.screenY)) |
+        0;
+    }
+
+    return hash >>> 0;
+  }
+
   getSpriteConfiguration(cluster, bounds) {
     return cluster
       .map((s) => ({
@@ -261,19 +276,27 @@ class MetaspriteAnalyzer {
         relY: s.screenY - bounds.minY,
         flipH: s.flipHorizontal,
         flipV: s.flipVertical,
-        palette: s.palette
+        palette: s.palette,
+        art: this.spriteArtHash(s)
       }))
       .sort((a, b) => a.relY - b.relY || a.relX - b.relX || a.tile - b.tile);
   }
 
   /**
-   * Identity of a metasprite: its size plus each member's tile and offset.
-   * Two frames showing the same character in the same pose share a key even if
-   * the character has moved across the screen.
+   * Identity of a metasprite: its size, plus each member's offset, attributes
+   * and appearance. Two frames showing the same character in the same pose
+   * share a key even if the character has moved across the screen.
+   *
+   * Appearance is included as well as the tile index because the two can
+   * disagree. On a CHR-RAM cartridge the index stays fixed while the art
+   * underneath is rewritten, so an index-only key would collapse a whole walk
+   * cycle into a single pose.
    */
   getSpriteConfigurationKey(cluster, bounds) {
     const config = this.getSpriteConfiguration(cluster, bounds);
-    const parts = config.map((c) => `${c.tile}:${c.palette}:${c.flipH}${c.flipV}@${c.relX},${c.relY}`);
+    const parts = config.map(
+      (c) => `${c.tile}:${c.palette}:${c.flipH}${c.flipV}:${c.art}@${c.relX},${c.relY}`
+    );
     return `${bounds.width}x${bounds.height}|${parts.join(';')}`;
   }
 

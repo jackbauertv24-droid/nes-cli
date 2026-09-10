@@ -5,43 +5,62 @@ const PATTERN_BYTES = 0x2000;
 /**
  * Records what the pattern tables held at each point down a frame.
  *
- * Reading `ppu.vramMem` once per frame is not enough for cartridges that swap
- * CHR banks mid-frame, which is common: SMB3 raises an MMC3 IRQ partway down
- * the screen and swaps to its status-bar tiles, so by the time a frame ends the
- * playfield's tiles are gone. Sampling at the frame boundary gets the HUD's
- * banks and every character extracts as blank.
+ * Reading `ppu.vramMem` once per frame is not enough, because tile data changes
+ * *during* a frame in two different ways:
  *
- * So we wrap the mapper's bank-loading entry points and keep a snapshot of the
- * 8KB of pattern memory each time the banks change, tagged with the scanline it
- * took effect on. Extraction then asks for the tiles as they were on the row
- * where a given sprite was actually drawn.
+ *   - A mapper swaps CHR banks. SMB3 raises an MMC3 IRQ partway down the screen
+ *     and swaps to its status-bar tiles, so by the time a frame ends the
+ *     playfield's tiles are gone and every character extracts as blank.
+ *   - A CHR-RAM game writes new tile data through $2007. Cartridges with no
+ *     CHR-ROM at all - UNROM ones like Castlevania - animate by rewriting tiles
+ *     in place, and never call the mapper's bank routines.
+ *
+ * Both are intercepted here and both are treated the same way: whenever tile
+ * memory is about to change, note the scanline. Extraction then asks for the
+ * tiles as they were on the row where a given sprite was actually drawn.
+ *
+ * Snapshots are taken lazily, one per scanline that saw changes rather than one
+ * per change. A CHR-RAM upload is thousands of consecutive byte writes; copying
+ * 8KB for each of them would cost tens of megabytes a frame. Instead the copy
+ * happens on the first change of the *next* affected scanline, at which point
+ * the current contents are exactly the finished state of the previous one.
  */
 class ChrRecorder {
   constructor(nes) {
     this.nes = nes;
     this.segments = [];
+    this.dirtyScanline = null;
     this.installed = false;
   }
 
-  /** Wrap the mapper. Must be called after a ROM is loaded, so mmap exists. */
+  /** Wrap the mapper and the PPU. Call once a ROM is loaded, so mmap exists. */
   install() {
     if (this.installed || !this.nes.mmap) {
       return this;
     }
 
-    const mmap = this.nes.mmap;
     const recorder = this;
+    const mmap = this.nes.mmap;
 
     for (const name of ['loadVromBank', 'load1kVromBank', 'load2kVromBank']) {
       if (typeof mmap[name] !== 'function') continue;
 
       const original = mmap[name].bind(mmap);
       mmap[name] = function wrapped(bank, address) {
-        const result = original(bank, address);
-        recorder.record();
-        return result;
+        recorder.noteChange();
+        return original(bank, address);
       };
     }
+
+    // CHR-RAM: every write below $2000 is tile data.
+    const ppu = this.nes.ppu;
+    const originalWrite = ppu.writeMem.bind(ppu);
+    ppu.writeMem = function wrapped(address, value) {
+      if (address < PATTERN_BYTES) {
+        recorder.noteChange();
+      }
+      return originalWrite(address, value);
+    };
 
     this.installed = true;
     return this;
@@ -51,23 +70,36 @@ class ChrRecorder {
     return this.nes.ppu.vramMem.slice(0, PATTERN_BYTES);
   }
 
-  /** Start a new frame's record, seeded with whatever is banked in right now. */
+  /** Start a new frame's record, seeded with whatever is in place right now. */
   beginFrame() {
     this.segments = [{ scanline: -Infinity, chr: this.snapshot() }];
+    this.dirtyScanline = null;
   }
 
-  record() {
+  /**
+   * Called immediately *before* tile memory changes.
+   *
+   * If the previous run of changes was on an earlier scanline, the current
+   * contents are that run's finished state, so this is the moment to keep it.
+   */
+  noteChange() {
     const scanline = this.nes.ppu.scanline;
-    const last = this.segments[this.segments.length - 1];
 
-    // Several banks are usually swapped back to back on one scanline; only the
-    // state after the last of them matters.
-    if (last && last.scanline === scanline) {
-      last.chr = this.snapshot();
+    if (this.dirtyScanline !== null && this.dirtyScanline !== scanline) {
+      this.segments.push({ scanline: this.dirtyScanline, chr: this.snapshot() });
+    }
+
+    this.dirtyScanline = scanline;
+  }
+
+  /** Keep the last run of changes, which nothing else will flush. */
+  endFrame() {
+    if (this.dirtyScanline === null) {
       return;
     }
 
-    this.segments.push({ scanline, chr: this.snapshot() });
+    this.segments.push({ scanline: this.dirtyScanline, chr: this.snapshot() });
+    this.dirtyScanline = null;
   }
 
   /** Pattern memory as it stood while `screenY` was being drawn. */
@@ -89,5 +121,6 @@ class ChrRecorder {
 }
 
 ChrRecorder.VISIBLE_SCANLINE_OFFSET = VISIBLE_SCANLINE_OFFSET;
+ChrRecorder.PATTERN_BYTES = PATTERN_BYTES;
 
 module.exports = ChrRecorder;
