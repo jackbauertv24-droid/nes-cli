@@ -105,6 +105,7 @@ const M = {
   inx: (a) => a.imp(0xe8),
   dex: (a) => a.imp(0xca),
   iny: (a) => a.imp(0xc8),
+  dey: (a) => a.imp(0x88),
   lsrA: (a) => a.imp(0x4a),
 
   ldaImm: (a, v) => a.imm(0xa9, v),
@@ -190,4 +191,36 @@ function resetPreamble(a) {
   M.bpl(a, 'vblank2');
 }
 
-module.exports = { Assembler, M, buildNROM, encodeTile, resetPreamble };
+/**
+ * Wrap assembled code in an MMC3 (mapper 4) cartridge image.
+ *
+ * MMC3 always maps the last 8KB PRG bank at $E000, whatever the bank registers
+ * say, so code placed there - including the vectors - is reachable from reset
+ * without any PRG banking. Code is therefore assembled at $E000 and written
+ * into the final bank.
+ */
+function buildMMC3(code, chr) {
+  const PRG_SIZE = 32768; // 2 x 16KB, four 8KB banks
+  const LAST_BANK = PRG_SIZE - 8192;
+  const prg = Buffer.alloc(PRG_SIZE, 0);
+
+  if (code.length > 8192 - 6) {
+    throw new Error('Code does not fit in the fixed last PRG bank');
+  }
+  code.copy(prg, LAST_BANK);
+
+  prg.writeUInt16LE(0xe000, PRG_SIZE - 6); // NMI
+  prg.writeUInt16LE(0xe000, PRG_SIZE - 4); // RESET
+  prg.writeUInt16LE(0xe000, PRG_SIZE - 2); // IRQ
+
+  const header = Buffer.alloc(16, 0);
+  header.write('NES\x1a', 0, 'binary');
+  header[4] = PRG_SIZE / 16384;
+  header[5] = chr.length / 8192;
+  header[6] = (4 << 4) | 0x01; // mapper 4, vertical mirroring
+  header[7] = 0;
+
+  return Buffer.concat([header, prg, chr]);
+}
+
+module.exports = { Assembler, M, buildNROM, buildMMC3, encodeTile, resetPreamble };

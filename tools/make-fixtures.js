@@ -12,7 +12,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { Assembler, M, buildNROM, encodeTile, resetPreamble } = require('./asm6502');
+const { Assembler, M, buildNROM, buildMMC3, encodeTile, resetPreamble } = require('./asm6502');
 
 const OUT_DIR = path.join(__dirname, '..', 'test', 'fixtures');
 
@@ -255,11 +255,137 @@ function buildMetasprite() {
   ]);
 }
 
+/**
+ * banked.nes - an MMC3 cartridge that swaps CHR banks partway down every frame.
+ *
+ * This is the case that a real cartridge exposed and NROM fixtures cannot: SMB3
+ * re-banks mid-frame so its status bar has its own tiles, which means pattern
+ * memory read at the frame boundary is not what the top of the screen was drawn
+ * from. Here the top half of the screen draws tile 4 from one 1KB bank and the
+ * bottom half draws the same tile index from a different bank holding different
+ * art, so extraction that ignores the scanline gets one of them wrong.
+ *
+ * The switch is cycle-timed rather than IRQ-driven: after the vblank flag
+ * appears the code busy-waits roughly 13,000 CPU cycles, which lands somewhere
+ * near the middle of the visible area. The exact row does not matter - the
+ * tests assert well inside each half.
+ */
+function buildBanked() {
+  const chr = Buffer.alloc(16384, 0);
+
+  // A filled block, and a hollow ring - unmistakably different at a glance.
+  const solid = [];
+  const hollow = [];
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const edge = x === 0 || x === 7 || y === 0 || y === 7;
+      solid.push(edge ? 1 : 3);
+      hollow.push(edge ? 2 : 0);
+    }
+  }
+
+  // 1KB CHR bank 4 holds the "A" art, bank 5 the "B" art. Tiles 4 and 5 of a
+  // bank live at +$40 and +$50 within it.
+  encodeTile(solid).copy(chr, 4 * 1024 + 4 * 16);
+  encodeTile(solid).copy(chr, 4 * 1024 + 5 * 16);
+  encodeTile(hollow).copy(chr, 5 * 1024 + 4 * 16);
+  encodeTile(hollow).copy(chr, 5 * 1024 + 5 * 16);
+
+  const palettes = [
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+    0x21, 0x16, 0x2a, 0x30, 0x21, 0x12, 0x27, 0x30,
+    0x21, 0x0f, 0x0f, 0x0f, 0x21, 0x0f, 0x0f, 0x0f,
+  ];
+
+  // One sprite in the top half and one in the bottom half, same tile byte $05.
+  const oam = new Array(256).fill(0);
+  for (let i = 0; i < 64; i++) {
+    oam[i * 4] = 0xff;
+  }
+  oam.splice(0, 8, 50 - 1, 0x05, 0x01, 64, 180 - 1, 0x05, 0x01, 64);
+
+  const a = new Assembler(0xe000);
+
+  /** MMC3: point bank register `reg` at 1KB CHR bank `bank`. */
+  const setBank = (reg, bank) => {
+    M.ldaImm(a, reg);
+    M.staAbs(a, 0x8000); // bank select
+    M.ldaImm(a, bank);
+    M.staAbs(a, 0x8001); // bank data
+  };
+
+  resetPreamble(a);
+
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, PPUCTRL);
+  M.staAbs(a, PPUMASK);
+
+  setBank(0, 0); // 2KB at $0000
+  setBank(1, 2); // 2KB at $0800
+  setBank(2, 4); // 1KB at $1000 - the one that gets swapped
+  setBank(3, 6);
+  setBank(4, 7);
+  setBank(5, 8);
+
+  setPpuAddr(a, 0x3f00);
+  M.ldxImm(a, 0x00);
+  a.label('palloop');
+  M.ldaAbsX(a, 'paltable');
+  M.staAbs(a, PPUDATA);
+  M.inx(a);
+  M.cpxImm(a, palettes.length);
+  M.bne(a, 'palloop');
+
+  M.ldaImm(a, 0x00);
+  M.staAbs(a, OAMADDR);
+  M.ldxImm(a, 0x00);
+  a.label('oamloop');
+  M.ldaAbsX(a, 'oamtable');
+  M.staAbs(a, OAMDATA);
+  M.inx(a);
+  M.bne(a, 'oamloop');
+
+  M.ldaImm(a, 0x20); // 8x16 sprites
+  M.staAbs(a, PPUCTRL);
+  M.ldaImm(a, 0x1e); // background and sprites, no left-edge clipping
+  M.staAbs(a, PPUMASK);
+
+  a.label('main');
+  a.label('waitvb');
+  M.bitAbs(a, PPUSTATUS);
+  M.bpl(a, 'waitvb');
+
+  setBank(2, 4); // top of the screen draws from bank 4
+
+  // Busy-wait about 13,000 cycles to reach the middle of the visible area.
+  M.ldyImm(a, 0x28);
+  a.label('outer');
+  M.ldxImm(a, 0x40);
+  a.label('inner');
+  M.dex(a);
+  M.bne(a, 'inner');
+  M.dey(a);
+  M.bne(a, 'outer');
+
+  setBank(2, 5); // bottom of the screen draws from bank 5
+
+  M.jmp(a, 'main');
+
+  a.label('paltable');
+  a.db(palettes);
+  a.label('oamtable');
+  a.db(oam);
+
+  return buildMMC3(a.assemble(), chr);
+}
+
 const FIXTURES = {
   'solid.nes': buildSolid,
   'input.nes': buildInput,
   'sprites.nes': buildSprites,
   'metasprite.nes': buildMetasprite,
+  'banked.nes': buildBanked,
 };
 
 fs.mkdirSync(OUT_DIR, { recursive: true });

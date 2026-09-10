@@ -144,6 +144,15 @@ at identical coordinates. Those stack into a cluster of dozens of sprites
 occupying a single tile. Bound the member count too: the PPU draws at most eight
 sprites per scanline, so a real composite character is a handful, not sixty.
 
+## Where to find characters
+
+Reaching gameplay is not always the quickest way to collect a game's sprites.
+Attract and demo modes exist to show characters off, animate them through
+several poses, and need no input at all - SMB3's title screen walks Mario and
+Luigi on and jumps them around before parading a leaf, a star, a mushroom and a
+goomba past. Waiting is cheaper than navigating a menu, and the poses are more
+varied than a few seconds of play will give you.
+
 ## Extraction recipe
 
 1. Run to the scene you want. Sprite extraction is a snapshot; pattern tables

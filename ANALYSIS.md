@@ -223,7 +223,15 @@ rather than `(219,43,0)` - because the NTSC palette is the more accurate one.
 
 The rewrite was checked end to end against a Super Mario Bros. 3 dump (mapper 4,
 MMC3). That run is what produced findings 7 and 8, neither of which the NROM
-fixtures could have surfaced.
+fixtures could have surfaced. Both are now covered by `banked.nes`, a synthetic
+MMC3 fixture that reproduces the mid-frame swap without needing a commercial
+ROM.
+
+The best source of character sprites turned out to need no input at all: left
+alone at the title screen, SMB3 runs a demo in which Mario and Luigi jump
+around. Fifteen metasprites come out of it, including eight distinct 16x32
+poses. This is the same scene the original version of this project spent its
+whole git history fighting - it is now one command.
 
 For the record, the input sequence that reaches gameplay - Mario starts on the
 START panel, which is *below* the path, so he has to go right and then up
@@ -248,6 +256,7 @@ assembler in `tools/asm6502.js`:
 | `input.nes` | strobes `$4016` each frame and shifts the eight button bits into `$0010` - lets a test read exactly which buttons arrived |
 | `sprites.nes` | two 8x16 sprites from pattern table 1 over a distinct background - pins tile addressing, transparency and background bleed |
 | `metasprite.nes` | a 16x32 character from four adjacent sprites, plus a lone HUD sprite - pins clustering and the filters |
+| `banked.nes` | an MMC3 cartridge that swaps the CHR bank at $1000 partway down every frame, so the same tile index is different art at the top and bottom of the screen - pins finding 7 |
 
 Regenerate with `npm run fixtures`.
 
@@ -260,12 +269,6 @@ reports that it is unimplemented rather than crashing. Doing it properly means
 tracking metasprite identity across frames as the character moves and its pose
 changes, which is a different problem from the single-frame grouping that
 `--format metasprite` now does.
-
-**A synthetic MMC3 fixture.** The bank-switching path is now validated against
-a real SMB3 cartridge, which is how findings 7 and 8 were found at all - but
-that ROM cannot live in the repository, so the jest suite still only covers
-NROM. A fixture that swaps CHR banks mid-frame would put findings 7 and 8 under
-regression coverage rather than relying on a manual run.
 
 **Better metasprite identity.** Grouping is per-frame; a character that changes
 pose is recorded as several unrelated metasprites. Tracking identity across

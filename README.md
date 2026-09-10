@@ -104,6 +104,15 @@ nes-cli sprites --format metasprite --frames 120 --output ./sprites
   and recur, which is how a character built from four or six hardware sprites is
   recovered as one image.
 
+A game's attract or demo mode is often the easiest place to harvest characters,
+because it animates them for you and needs no input. Left alone at its title
+screen, SMB3 walks Mario and Luigi on and jumps them around; extracting from
+that costs one command:
+
+```bash
+nes-cli script smb3.nes run:60 sprites:metasprite:./out
+```
+
 Metasprite grouping can be narrowed when a scene has a HUD or several
 characters:
 

@@ -7,9 +7,10 @@
  *
  *   node tools/make-examples.js /path/to/smb3.nes
  *
- * The input sequence below navigates the World 1 map to level 1-1 and plays a
- * little way into it, so the examples show real gameplay rather than the title
- * screen. Frame counts are generous on purpose: they are waiting out fades and
+ * Two captures are made. The first touches no buttons at all: left alone, SMB3
+ * runs a demo over its title screen where Mario and Luigi jump around, which is
+ * the richest source of character sprites in the game. The second navigates the
+ * World 1 map to level 1-1 and plays a little way in. Frame counts are generous on purpose: they are waiting out fades and
  * map animations, and being early is what breaks the sequence.
  */
 
@@ -21,6 +22,7 @@ const ASCIIHandler = require('../src/formats/image/ascii');
 const RecordCommand = require('../src/commands/record');
 const AudioCommand = require('../src/commands/audio');
 const SpritesCommand = require('../src/commands/sprites');
+const { PNG } = require('pngjs');
 
 const romPath = process.argv[2];
 if (!romPath || !fs.existsSync(romPath)) {
@@ -28,33 +30,109 @@ if (!romPath || !fs.existsSync(romPath)) {
   process.exit(1);
 }
 
+/**
+ * Tile every extracted metasprite onto one checkerboard sheet, scaled up.
+ * The checkerboard is there so transparency is visible rather than implied.
+ */
+function contactSheet(dir, scale = 3, pad = 6) {
+  const meta = JSON.parse(fs.readFileSync(path.join(dir, 'metasprites.json'), 'utf8'));
+  if (meta.length === 0) return null;
+
+  const images = meta.map((m) => PNG.sync.read(fs.readFileSync(path.join(dir, m.filename))));
+  const width = images.reduce((total, img) => total + img.width * scale + pad, pad);
+  const height = Math.max(...images.map((img) => img.height)) * scale + pad * 2;
+  const sheet = new PNG({ width, height });
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const shade = ((x >> 3) + (y >> 3)) % 2 ? 215 : 180;
+      const i = (y * width + x) * 4;
+      sheet.data[i] = shade;
+      sheet.data[i + 1] = shade;
+      sheet.data[i + 2] = shade;
+      sheet.data[i + 3] = 255;
+    }
+  }
+
+  let originX = pad;
+  for (const img of images) {
+    for (let y = 0; y < img.height * scale; y++) {
+      for (let x = 0; x < img.width * scale; x++) {
+        const src = (Math.floor(y / scale) * img.width + Math.floor(x / scale)) * 4;
+        if (img.data[src + 3] === 0) continue;
+        const dst = ((y + pad) * width + originX + x) * 4;
+        sheet.data[dst] = img.data[src];
+        sheet.data[dst + 1] = img.data[src + 1];
+        sheet.data[dst + 2] = img.data[src + 2];
+        sheet.data[dst + 3] = 255;
+      }
+    }
+    originX += img.width * scale + pad;
+  }
+
+  const outPath = path.join(dir, '..', 'contact-sheet.png');
+  fs.writeFileSync(outPath, PNG.sync.write(sheet));
+  return outPath;
+}
+
 const OUT = path.join(__dirname, '..', 'examples');
 fs.mkdirSync(OUT, { recursive: true });
 const out = (name) => path.join(OUT, name);
 
-const emulator = new Emulator();
-emulator.loadROM(romPath);
-
-function press(button, holdFrames = 8, settleFrames = 90) {
+function press(emulator, button, holdFrames = 8, settleFrames = 90) {
   emulator.buttonDown(1, button);
   emulator.run(holdFrames);
   emulator.buttonUp(1, button);
   emulator.run(settleFrames);
 }
 
-// Boot into the attract screen, then through the menu onto the World 1 map.
-emulator.run(300);
-PNGHandler.save(emulator.getFrameBuffer(), out('smb3_title.png'));
+// ---------------------------------------------------------------------------
+// Title demo. Press nothing; the game animates Mario and Luigi by itself.
+// ---------------------------------------------------------------------------
 
-press('START', 8, 200); // attract -> 1/2 player menu
-press('START', 8, 600); // menu -> world map
+const demo = new Emulator();
+demo.loadROM(romPath);
+
+// The pair walk on around frame 120 and are jumping by 250. Analysing from 60
+// covers the whole routine including the items that follow.
+demo.run(60);
+PNGHandler.save(demo.getFrameBuffer(), out('smb3_title.png'));
+
+new SpritesCommand(demo).execute({
+  format: 'metasprite',
+  outputDir: out('sprites-title-demo'),
+  frames: 340
+});
+
+// A frame from the middle of the routine, with a character mid-jump. This uses
+// a second emulator because the metasprite analysis above has already run the
+// first one past this point.
+const demoFrame = new Emulator();
+demoFrame.loadROM(romPath);
+demoFrame.run(250);
+PNGHandler.save(demoFrame.getFrameBuffer(), out('smb3_title_demo.png'));
+
+contactSheet(out('sprites-title-demo/metasprites'));
+console.log('title demo captured');
+
+// ---------------------------------------------------------------------------
+// Gameplay.
+// ---------------------------------------------------------------------------
+
+const emulator = new Emulator();
+emulator.loadROM(romPath);
+
+// Boot, then through the menu onto the World 1 map.
+emulator.run(300);
+press(emulator, 'START', 8, 200); // attract -> 1/2 player menu
+press(emulator, 'START', 8, 600); // menu -> world map
 PNGHandler.save(emulator.getFrameBuffer(), out('smb3_map.png'));
 
 // Mario starts on the START panel, below the path. Right, then up, puts him on
 // level 1-1; A enters it.
-press('RIGHT', 18, 120);
-press('UP', 18, 120);
-press('A', 10, 400);
+press(emulator, 'RIGHT', 18, 120);
+press(emulator, 'UP', 18, 120);
+press(emulator, 'A', 10, 400);
 
 // Walk in a little way so the frame has Mario, blocks and an enemy in it.
 emulator.buttonDown(1, 'RIGHT');
@@ -91,6 +169,8 @@ new SpritesCommand(emulator).execute({
 });
 emulator.buttonUp(1, 'RIGHT');
 emulator.run(60);
+
+contactSheet(out('sprites/metasprites'));
 
 new RecordCommand(emulator).execute({
   format: 'gif',
