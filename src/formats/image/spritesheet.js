@@ -54,7 +54,8 @@ class SpriteHandler {
     let pixels = [];
 
     for (const tile of tiles) {
-      pixels = pixels.concat(emulator.getPatternTile(table, tile));
+      // Ask for the banks that were active on this sprite's own scanline.
+      pixels = pixels.concat(emulator.getPatternTile(table, tile, sprite.screenY));
     }
 
     if (sprite.flipHorizontal) {
@@ -108,11 +109,17 @@ class SpriteHandler {
     return flipped;
   }
 
-  /** Read every tile of one live pattern table as colour indices. */
-  static extractPatternTable(emulator, table) {
+  /**
+   * Read every tile of one pattern table as colour indices.
+   *
+   * Pass screenY for a cartridge that re-banks CHR partway down the frame, to
+   * get the tiles that were in place while that row was drawn rather than
+   * whichever bank happened to be left at the frame boundary.
+   */
+  static extractPatternTable(emulator, table, screenY) {
     const tiles = [];
     for (let id = 0; id < 256; id++) {
-      tiles.push({ id, table, data: emulator.getPatternTile(table, id) });
+      tiles.push({ id, table, data: emulator.getPatternTile(table, id, screenY) });
     }
     return tiles;
   }
@@ -190,14 +197,14 @@ class SpriteHandler {
     return outputPath;
   }
 
-  static savePatternTables(emulator, outputDir, individual = false) {
+  static savePatternTables(emulator, outputDir, individual = false, screenY) {
     fs.mkdirSync(outputDir, { recursive: true });
     const palettes = emulator.getAllSpritePalettes();
     const gray = this.getGrayscalePalette();
     const results = [];
 
     for (const table of [0, 1]) {
-      const tiles = this.extractPatternTable(emulator, table);
+      const tiles = this.extractPatternTable(emulator, table, screenY);
       results.push(
         this.createSpriteSheet(tiles, gray, path.join(outputDir, `table${table}_gray.png`))
       );

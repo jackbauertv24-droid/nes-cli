@@ -139,7 +139,52 @@ Fixed: `load` writes a session file, every other command restores it, operates,
 and writes it back. `script` and `repl` still keep one emulator in memory and
 skip the serialisation entirely.
 
-### 7. Smaller defects
+### 7. CHR banks change partway down a frame
+
+Found while validating the rewrite against the real SMB3 cartridge: after all
+the fixes above, every extracted character still came out blank.
+
+Reading `ppu.vramMem` once per frame is not enough. SMB3 raises an MMC3 IRQ
+partway down the screen and swaps CHR so the status bar can have its own tiles.
+Tracing one frame of level 1-1:
+
+```
+load1kVromBank addr=0x1000 scanline=6    <- playfield tiles in
+load1kVromBank addr=0x1400 scanline=6
+...
+load1kVromBank addr=0x1400 scanline=214  <- status bar tiles in
+load1kVromBank addr=0x1800 scanline=215
+table 1 non-zero at end of frame: 0
+```
+
+Sixteen bank switches per frame. By the time the frame ends the playfield's
+tiles are gone, so anything sampling at the frame boundary reads the status
+bar's banks - and pattern table 1, where SMB3's character tiles live, is
+entirely zero.
+
+Fixed by `src/core/chr-recorder.js`, which wraps the mapper's bank-loading
+entry points and keeps a snapshot of pattern memory each time the banks change,
+tagged with the scanline it took effect on. `getPatternTile` takes an optional
+screen row and returns the tiles that were in place while that row was drawn;
+sprite extraction passes each sprite's own row. jsnes renders screen row 0 on
+scanline 21, which is the offset between the two.
+
+`--format chr` takes `--at-row` for the same reason.
+
+### 8. Two kinds of false metasprite
+
+Also found against the real ROM. Proximity grouping is transitive, so a line of
+evenly spaced sprites chains into a single cluster - one extraction came out as
+a screen-tall black smear. Separately, games park unused sprites off-screen and
+often stack all of them at identical coordinates, which grouped into a cluster
+of 64 sprites occupying one tile.
+
+Both are now bounded: `--max-size` (default 64 pixels) rejects clusters too
+large to be a character, and `--max-sprites` (default 16) rejects piles. The
+PPU can only draw eight sprites per scanline, so a real composite character is
+a handful.
+
+### 9. Smaller defects
 
 | Defect | Effect |
 |---|---|
@@ -154,7 +199,7 @@ skip the serialisation entirely.
 | Save-state "slots" held in an in-memory `Map` | always empty, since every command is a new process |
 | Metasprite filter hardcoded `screenY > 140 && palette in {0,1}` | SMB3 title-screen tuning baked into library code |
 
-### 8. One trap that was not a bug, and now cannot become one
+### 10. One trap that was not a bug, and now cannot become one
 
 `emulator.js` called `ppu.palTable.loadDefaultPalette()` after every ROM load.
 jsnes deliberately leaves that call commented out in its own constructor,
@@ -173,6 +218,23 @@ Colours shift slightly against the old output - a known red is now `(188,25,0)`
 rather than `(219,43,0)` - because the NTSC palette is the more accurate one.
 
 ---
+
+## Validation against a real cartridge
+
+The rewrite was checked end to end against a Super Mario Bros. 3 dump (mapper 4,
+MMC3). That run is what produced findings 7 and 8, neither of which the NROM
+fixtures could have surfaced.
+
+For the record, the input sequence that reaches gameplay - Mario starts on the
+START panel, which is *below* the path, so he has to go right and then up
+before A will enter level 1-1:
+
+```
+run 300; START; wait; START; wait    -> World 1 map
+RIGHT; UP; A                         -> level 1-1
+```
+
+`tools/make-examples.js` automates it and regenerates `examples/`.
 
 ## Test fixtures
 
@@ -199,13 +261,12 @@ tracking metasprite identity across frames as the character moves and its pose
 changes, which is a different problem from the single-frame grouping that
 `--format metasprite` now does.
 
-**Regenerate `examples/`.** Everything in there was produced by the broken
-pipeline from the SMB3 attract screen. The sprite extractions in particular
-show the background bleed described above. They need regenerating from real
-gameplay - which is only possible now that input works - against a legally
-obtained ROM. `examples/README.md` carries a note until then.
+**A synthetic MMC3 fixture.** The bank-switching path is now validated against
+a real SMB3 cartridge, which is how findings 7 and 8 were found at all - but
+that ROM cannot live in the repository, so the jest suite still only covers
+NROM. A fixture that swaps CHR banks mid-frame would put findings 7 and 8 under
+regression coverage rather than relying on a manual run.
 
-**Exercise a bank-switching mapper end to end.** `getPatternTile` is correct by
-construction and covered against NROM, but no fixture yet swaps CHR banks mid
-frame. Either a synthetic MMC3 fixture or a run against a real MMC3 cartridge
-would close that gap.
+**Better metasprite identity.** Grouping is per-frame; a character that changes
+pose is recorded as several unrelated metasprites. Tracking identity across
+frames is the same work that animation extraction needs.

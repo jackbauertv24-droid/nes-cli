@@ -91,9 +91,15 @@ nes-cli sprites --format metasprite --frames 120 --output ./sprites
 - **`oam`** - the 64 hardware sprites as they are on this frame, each as a PNG
   with real transparency, plus `oam.json` with position, tile, palette and flip
   flags.
-- **`chr`** - both pattern tables as they are banked right now, as sheets in
-  greyscale and in each of the four sprite palettes. This is a snapshot: a game
-  that switches CHR banks shows different tiles at a different moment.
+- **`chr`** - both pattern tables as sheets, in greyscale and in each of the
+  four sprite palettes. This is a snapshot: a game that switches CHR banks shows
+  different tiles at a different moment. Many games also re-bank *partway down a
+  frame* to give a status bar its own tiles, so use `--at-row` to say which part
+  of the screen you mean:
+
+  ```bash
+  nes-cli sprites --format chr --at-row 100 --output ./sprites
+  ```
 - **`metasprite`** - runs N frames and finds groups of sprites that sit together
   and recur, which is how a character built from four or six hardware sprites is
   recovered as one image.
@@ -105,9 +111,17 @@ characters:
 nes-cli sprites --format metasprite --min-y 64 --palettes 0,1 --max-gap 8
 ```
 
+Two guards keep false positives out, and can be relaxed for an unusually large
+character: `--max-size` (default 64 pixels) rejects clusters too big to be a
+character, since proximity grouping is transitive and a row of coins will
+otherwise chain across the screen; `--max-sprites` (default 16) rejects the pile
+of parked sprites that games stack off-screen.
+
 Sprites are composited from pattern-table colour indices, never scraped from
 the rendered screen, so extracted images contain no background and colour index
-0 is genuinely transparent. See `TECHNICAL_FINDINGS.md` for why that matters.
+0 is genuinely transparent. Tiles are read as they were banked on each sprite's
+own scanline, which is what makes this work on cartridges that swap CHR mid
+frame. See `TECHNICAL_FINDINGS.md`.
 
 `--format animation` is not implemented yet.
 
@@ -156,7 +170,7 @@ src/core/             emulator wrapper, save states, colour conversion
 src/commands/         one module per subcommand
 src/formats/          PNG, GIF, ASCII/ANSI, WAV, sprite and metasprite writers
 src/repl/shell.js     shared dispatcher for repl, script and batch
-tools/                6502 assembler and test ROM generator
+tools/                6502 assembler, test ROM generator, example generator
 test/                 jest suite and generated fixture ROMs
 ```
 
@@ -165,3 +179,12 @@ test/                 jest suite and generated fixture ROMs
 - `TECHNICAL_FINDINGS.md` - how NES sprite extraction actually works
 - `ANALYSIS.md` - what was wrong with the first version and how it was fixed
 - `NES_ROM_RESOURCES.md` - legal places to get ROMs
+
+## Regenerating the examples
+
+`examples/` is generated from a Super Mario Bros. 3 cartridge dump, which is not
+in this repository. Point the generator at your own copy:
+
+```bash
+node tools/make-examples.js /path/to/smb3.nes
+```

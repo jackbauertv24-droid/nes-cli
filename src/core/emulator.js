@@ -1,6 +1,7 @@
 const jsnes = require('jsnes');
 const fs = require('fs');
 const { unpackRGB } = require('./color');
+const ChrRecorder = require('./chr-recorder');
 
 // The NES does not run at exactly 60Hz. Using the real rate keeps
 // millisecond-to-frame conversions honest over long captures.
@@ -34,6 +35,7 @@ class Emulator {
     this.audioBuffer = [];
     this.frameCount = 0;
     this.currentROM = null;
+    this.chrRecorder = new ChrRecorder(this.nes);
   }
 
   onFrame(frameBuffer) {
@@ -51,23 +53,26 @@ class Emulator {
     this.currentROM = romPath;
     this.frameCount = 0;
     this.audioBuffer = [];
+    // The mapper only exists once a ROM is loaded.
+    this.chrRecorder.install();
     // Render one frame so callers always have a framebuffer to work with.
-    this.nes.frame();
+    this.frame();
     return true;
   }
 
   frame() {
+    this.chrRecorder.beginFrame();
     this.nes.frame();
   }
 
   stepFrame() {
-    this.nes.frame();
+    this.frame();
     return this.frameCount;
   }
 
   run(frames = 1) {
     for (let i = 0; i < frames; i++) {
-      this.nes.frame();
+      this.frame();
     }
   }
 
@@ -89,6 +94,19 @@ class Emulator {
 
   getFrameBuffer() {
     return this.frameBuffer;
+  }
+
+  /**
+   * Restore a previously captured framebuffer.
+   *
+   * jsnes state does not include the rendered screen - restoring it leaves the
+   * emulator's memory correct but the framebuffer showing whatever was drawn
+   * last, which for a freshly constructed emulator is the power-on frame. A
+   * screenshot taken straight after a restore would otherwise show a blank
+   * screen rather than the game.
+   */
+  setFrameBuffer(buffer) {
+    this.frameBuffer = buffer;
   }
 
   getNES() {
@@ -155,13 +173,20 @@ class Emulator {
    * tile numbers appeared to "change meaning" during gameplay. It also works
    * for CHR-RAM games, which have no CHR data in the file at all.
    *
+   * Cartridges that swap CHR banks partway down a frame - SMB3 does, to give
+   * its status bar different tiles - need the third argument. Without it this
+   * reads whatever is banked in at the frame boundary, which for such games is
+   * the bottom strip's tiles rather than the playfield's.
+   *
    * @param table 0 for $0000, 1 for $1000.
    * @param index 0-255 within that table.
+   * @param screenY optional screen row; reads the banks active on that row.
    * @returns 64 colour indices (0-3), row-major.
    */
-  getPatternTile(table, index) {
+  getPatternTile(table, index, screenY) {
     const base = (table & 1) * 0x1000 + (index & 0xff) * 16;
-    const vram = this.nes.ppu.vramMem;
+    const recorded = screenY == null ? null : this.chrRecorder.chrForScreenRow(screenY);
+    const vram = recorded || this.nes.ppu.vramMem;
     const pixels = new Array(64).fill(0);
 
     for (let y = 0; y < 8; y++) {

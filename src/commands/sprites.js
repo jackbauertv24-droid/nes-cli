@@ -16,7 +16,7 @@ class SpritesCommand {
 
     switch (format) {
       case 'chr':
-        return this.extractPatternTables(path.join(outputDir, 'chr'), options.individual);
+        return this.extractPatternTables(path.join(outputDir, 'chr'), options.individual, options.atRow);
       case 'oam':
         return this.extractOAM(path.join(outputDir, 'oam'), options.individual);
       case 'metasprite':
@@ -28,26 +28,41 @@ class SpritesCommand {
         return false;
       case 'all':
       default:
-        this.extractPatternTables(path.join(outputDir, 'chr'), options.individual);
+        this.extractPatternTables(path.join(outputDir, 'chr'), options.individual, options.atRow);
         this.extractOAM(path.join(outputDir, 'oam'), options.individual);
         return outputDir;
     }
   }
 
   /**
-   * Dump both pattern tables as they are banked *right now*.
+   * Dump both pattern tables.
    *
    * The output is a snapshot, not the whole cartridge: a mapper that swaps CHR
-   * banks will show different tiles at a different moment. Run some frames to
-   * reach the scene you care about before extracting.
+   * banks shows different tiles at a different moment. Run some frames to reach
+   * the scene you care about first.
+   *
+   * Games that re-bank partway down the frame - SMB3 gives its status bar its
+   * own tiles - need atRow to say which part of the screen you mean. Without
+   * it this reads the banks left in place at the end of the frame, which for
+   * those games is the bottom strip.
    */
-  extractPatternTables(outputDir, individual) {
+  extractPatternTables(outputDir, individual, atRow) {
     FileUtils.ensureDir(outputDir);
-    const results = SpriteHandler.savePatternTables(this.emulator, outputDir, individual);
+    const results = SpriteHandler.savePatternTables(
+      this.emulator,
+      outputDir,
+      individual,
+      atRow
+    );
 
     console.log(chalk.green(`Pattern tables: ${outputDir}`));
     console.log(chalk.gray(`  512 tiles (2 tables x 256), ${results.length} sheets`));
-    console.log(chalk.gray(`  Snapshot of frame ${this.emulator.frameCount}`));
+    console.log(
+      chalk.gray(
+        `  Frame ${this.emulator.frameCount}` +
+          (atRow == null ? ' (end of frame)' : `, as banked on screen row ${atRow}`)
+      )
+    );
     return results;
   }
 
@@ -80,7 +95,10 @@ class SpritesCommand {
     const analyzer = new MetaspriteAnalyzer(this.emulator, {
       minY: options.minY,
       maxY: options.maxY,
-      palettes: options.palettes
+      palettes: options.palettes,
+      maxWidth: options.maxWidth,
+      maxHeight: options.maxHeight,
+      maxSprites: options.maxSprites
     });
 
     console.log(chalk.blue(`Analysing ${frames} frames for metasprites...`));

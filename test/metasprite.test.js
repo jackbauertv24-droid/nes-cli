@@ -74,3 +74,70 @@ describe('metasprite grouping', () => {
     expect(meta[0]).toMatchObject({ width: 16, height: 32, spriteCount: 4 });
   });
 });
+
+describe('cluster size bound', () => {
+  test('a chain of sprites spanning the screen is rejected', () => {
+    // Proximity grouping is transitive, so an evenly spaced row of sprites
+    // chains into one cluster. Without a bound this was written out as a
+    // screen-tall smear rather than discarded.
+    const emulator = boot('metasprite.nes', 30);
+    const analyzer = new MetaspriteAnalyzer(emulator);
+
+    const line = [];
+    for (let i = 0; i < 20; i++) {
+      line.push({ id: i, x: 8 + i * 8, screenY: 100, tile: 0x05, palette: 1, flipHorizontal: 0, flipVertical: 0 });
+    }
+    const clustered = analyzer.clusterSpritesByPosition(line, 8, 16);
+    expect(clustered).toHaveLength(1);
+
+    const bounds = analyzer.getClusterBounds(clustered[0], 16);
+    expect(bounds.width).toBeGreaterThan(analyzer.maxSize.width);
+  });
+
+  test('the real character is still inside the bound', () => {
+    const emulator = boot('metasprite.nes', 30);
+    const analyzer = new MetaspriteAnalyzer(emulator);
+    const found = analyzer.analyzeMetasprites(10);
+
+    expect(found).toHaveLength(1);
+    expect(found[0].width).toBeLessThanOrEqual(analyzer.maxSize.width);
+    expect(found[0].height).toBeLessThanOrEqual(analyzer.maxSize.height);
+  });
+
+  test('the bound can be raised for a large boss sprite', () => {
+    const emulator = boot('metasprite.nes', 30);
+    expect(new MetaspriteAnalyzer(emulator, { maxWidth: 8, maxHeight: 8 }).analyzeMetasprites(10)).toHaveLength(0);
+    expect(new MetaspriteAnalyzer(emulator, { maxWidth: 128, maxHeight: 128 }).analyzeMetasprites(10)).toHaveLength(1);
+  });
+});
+
+describe('degenerate clusters', () => {
+  test('a pile of parked sprites at one position is rejected', () => {
+    // Games hide unused sprites by parking them, frequently all at the same
+    // coordinates. They stack into a cluster of dozens occupying a single
+    // tile, which used to be written out as a small black rectangle.
+    const emulator = boot('metasprite.nes', 30);
+    const analyzer = new MetaspriteAnalyzer(emulator);
+
+    const pile = [];
+    for (let i = 0; i < 40; i++) {
+      pile.push({ id: i, x: 0, screenY: 200, tile: 0x05, palette: 1, flipHorizontal: 0, flipVertical: 0 });
+    }
+
+    const [cluster] = analyzer.clusterSpritesByPosition(pile, 8, 16);
+    expect(cluster).toHaveLength(40);
+
+    const bounds = analyzer.getClusterBounds(cluster, 16);
+    // Small enough to pass the size bound, so the sprite-count bound is what
+    // has to catch it.
+    expect(bounds.width).toBeLessThanOrEqual(analyzer.maxSize.width);
+    expect(cluster.length).toBeGreaterThan(analyzer.maxSprites);
+  });
+
+  test('the four-sprite character is well inside the sprite-count bound', () => {
+    const emulator = boot('metasprite.nes', 30);
+    const analyzer = new MetaspriteAnalyzer(emulator);
+    const found = analyzer.analyzeMetasprites(10);
+    expect(found[0].spriteCount).toBeLessThanOrEqual(analyzer.maxSprites);
+  });
+});

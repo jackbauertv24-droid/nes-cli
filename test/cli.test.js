@@ -74,3 +74,29 @@ describe('command line', () => {
     }
   });
 });
+
+describe('session fidelity', () => {
+  const { PNG } = require('pngjs');
+
+  test('a screenshot after a restore shows the game, not the power-on frame', () => {
+    // jsnes state does not include the rendered screen, so a restore used to
+    // leave the framebuffer showing the blank frame drawn at load time.
+    const cwd = tmpdir('fidelity');
+
+    run(['load', fixture('sprites.nes'), '--frames', '60'], cwd);
+    run(['screenshot', 'restored.png'], cwd);
+
+    run(['script', fixture('sprites.nes'), 'run:60', 'screenshot:direct.png'], cwd);
+
+    const restored = PNG.sync.read(fs.readFileSync(path.join(cwd, 'restored.png')));
+    const direct = PNG.sync.read(fs.readFileSync(path.join(cwd, 'direct.png')));
+
+    expect(Buffer.compare(restored.data, direct.data)).toBe(0);
+    // And it is a real screen, not one flat colour.
+    const colours = new Set();
+    for (let i = 0; i < restored.width * restored.height; i++) {
+      colours.add(restored.data.readUInt32BE(i * 4));
+    }
+    expect(colours.size).toBeGreaterThan(1);
+  });
+});

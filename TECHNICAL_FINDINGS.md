@@ -28,6 +28,28 @@ games, which have no CHR data in the ROM file at all.
 live in pattern table 1, which is `ptTile[i + 256]`. Indexing `ptTile[i]` for a
 sprite tile reads the background table and generally finds blanks.
 
+## Sample the pattern tables at the right scanline, not at the frame boundary
+
+Reading pattern memory once per frame is still not enough, because bank
+switching does not only happen between frames. A cartridge can raise a mapper
+IRQ partway down the screen and swap CHR so that different horizontal strips
+draw from different banks. SMB3 does exactly this to give its status bar its
+own tiles - sixteen bank switches per frame in level 1-1, the playfield's tiles
+loaded around scanline 6 and the status bar's around scanline 214.
+
+The consequence is blunt: once a frame has finished, the playfield's tiles are
+gone. Pattern table 1, where SMB3 keeps its character tiles, reads as entirely
+zero, and every character extracts as a blank image.
+
+So snapshot pattern memory whenever the banks change, tag each snapshot with
+the scanline it took effect on, and when extracting a sprite ask for the
+snapshot covering that sprite's own row. In jsnes, wrap `mmap.loadVromBank`,
+`load1kVromBank` and `load2kVromBank`; screen row 0 is scanline 21, so
+`scanline = screenY + 21`.
+
+The same applies to dumping the pattern tables wholesale: "the CHR" is not one
+thing, it is a thing that depends on where down the screen you look.
+
 ## Composite from colour indices, not from the framebuffer
 
 It is tempting to copy the rendered pixels under a sprite's bounding box. Do
@@ -107,13 +129,30 @@ Whatever writes the WAV header has to use the same number the emulator was
 constructed with, or the file plays at the wrong pitch and misreports its
 length.
 
+## Grouping sprites into characters
+
+Characters are several hardware sprites side by side, so grouping by proximity
+is the right instinct - but a flood fill is transitive, and that has two failure
+modes worth guarding against explicitly.
+
+A line of evenly spaced sprites - a row of coins, a fence, a scrolling strip -
+chains into one cluster spanning the screen. Bound the bounding box; a character
+is small.
+
+Games hide unused sprites by parking them off-screen, and often park all of them
+at identical coordinates. Those stack into a cluster of dozens of sprites
+occupying a single tile. Bound the member count too: the PPU draws at most eight
+sprites per scanline, so a real composite character is a handful, not sixty.
+
 ## Extraction recipe
 
 1. Run to the scene you want. Sprite extraction is a snapshot; pattern tables
    and palettes both change as the game runs.
 2. Decode OAM, discarding sprites parked at Y >= `$EF`.
 3. Resolve each tile byte to a table and tile pair for the current sprite size.
-4. Read those tiles from `ppu.vramMem`, applying the flip bits.
-5. Group sprites by proximity to find composite characters.
+4. Read those tiles from the pattern-table snapshot covering the sprite's own
+   screen row, applying the flip bits.
+5. Group sprites by proximity to find composite characters, bounding both the
+   size of a cluster and the number of sprites in it.
 6. Composite back-to-front, skipping colour index 0.
 7. Resolve to RGB and write, with index 0 as alpha 0.

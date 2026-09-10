@@ -26,6 +26,19 @@ class MetaspriteAnalyzer {
       maxY: options.maxY == null ? 239 : options.maxY,
       palettes: options.palettes == null ? [0, 1, 2, 3] : options.palettes
     };
+    // Proximity grouping is transitive, so a line of sprites - a row of coins,
+    // a fence, a scrolling status strip - can chain into one cluster spanning
+    // the screen. A character is small; anything larger than this is rejected
+    // rather than written out as a tall smear.
+    this.maxSize = {
+      width: options.maxWidth == null ? 64 : options.maxWidth,
+      height: options.maxHeight == null ? 64 : options.maxHeight
+    };
+    // Games park unused sprites off-screen, often all at the same coordinates.
+    // Those stack into a cluster of dozens of sprites occupying one tile, which
+    // is not a character. Real composite characters are a handful of sprites -
+    // the PPU can only draw eight per scanline.
+    this.maxSprites = options.maxSprites == null ? 16 : options.maxSprites;
   }
 
   captureFrame() {
@@ -182,6 +195,14 @@ class MetaspriteAnalyzer {
         if (cluster.length < minSprites) continue;
 
         const bounds = this.getClusterBounds(cluster, frame.spriteHeight);
+        if (
+          cluster.length > this.maxSprites ||
+          bounds.width > this.maxSize.width ||
+          bounds.height > this.maxSize.height
+        ) {
+          continue;
+        }
+
         const key = this.getSpriteConfigurationKey(cluster, bounds);
 
         if (!candidates.has(key)) {

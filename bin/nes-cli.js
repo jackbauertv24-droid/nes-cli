@@ -55,11 +55,26 @@ function openSession() {
   const emulator = new Emulator();
   emulator.loadROM(data.rom);
   emulator.setState(data);
+
+  // jsnes serialises memory but not the rendered screen, so carry it in the
+  // session too. Without this a screenshot immediately after a restore shows
+  // the power-on frame instead of the game.
+  if (data.frameBuffer) {
+    emulator.setFrameBuffer(new Int32Array(Buffer.from(data.frameBuffer, 'base64').buffer));
+  }
+
   return emulator;
 }
 
 function saveSession(emulator) {
-  fs.writeFileSync(sessionFile(), JSON.stringify(emulator.getState()));
+  const state = emulator.getState();
+  const frame = emulator.getFrameBuffer();
+
+  if (frame) {
+    state.frameBuffer = Buffer.from(Int32Array.from(frame).buffer).toString('base64');
+  }
+
+  fs.writeFileSync(sessionFile(), JSON.stringify(state));
 }
 
 /**
@@ -172,11 +187,14 @@ program
   .option('-o, --output <path>', 'Output directory', './sprites')
   .option('-i, --individual', 'Also write one PNG per tile/sprite')
   .option('--frames <n>', 'Frames to analyse for metasprites', '60')
+  .option('--at-row <n>', 'For chr: read the banks active on this screen row')
   .option('--max-gap <n>', 'Pixel gap that still counts as one metasprite', '8')
   .option('--min-sprites <n>', 'Minimum sprites per metasprite', '2')
   .option('--min-y <n>', 'Ignore sprites above this screen row')
   .option('--max-y <n>', 'Ignore sprites below this screen row')
   .option('--palettes <list>', 'Comma-separated sprite palettes to consider (0-3)')
+  .option('--max-size <n>', 'Reject clusters larger than this many pixels square', '64')
+  .option('--max-sprites <n>', 'Reject clusters of more than this many sprites', '16')
   .action((options) => {
     withSession((emulator) =>
       new SpritesCommand(emulator).execute({
@@ -184,13 +202,17 @@ program
         outputDir: options.output,
         individual: options.individual,
         frames: parseInt(options.frames, 10),
+        atRow: options.atRow == null ? undefined : parseInt(options.atRow, 10),
         maxGap: parseInt(options.maxGap, 10),
         minSprites: parseInt(options.minSprites, 10),
         minY: options.minY == null ? undefined : parseInt(options.minY, 10),
         maxY: options.maxY == null ? undefined : parseInt(options.maxY, 10),
         palettes: options.palettes
           ? options.palettes.split(',').map((p) => parseInt(p, 10))
-          : undefined
+          : undefined,
+        maxWidth: parseInt(options.maxSize, 10),
+        maxHeight: parseInt(options.maxSize, 10),
+        maxSprites: parseInt(options.maxSprites, 10)
       })
     );
   });

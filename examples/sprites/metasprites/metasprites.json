@@ -1,0 +1,67 @@
+[
+  {
+    "id": 0,
+    "filename": "metasprite_000.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      217,
+      219
+    ],
+    "occurrences": 105,
+    "firstFrame": 1909
+  },
+  {
+    "id": 1,
+    "filename": "metasprite_001.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      13,
+      13
+    ],
+    "occurrences": 24,
+    "firstFrame": 1909
+  },
+  {
+    "id": 2,
+    "filename": "metasprite_002.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      45,
+      47
+    ],
+    "occurrences": 3,
+    "firstFrame": 2056
+  },
+  {
+    "id": 3,
+    "filename": "metasprite_003.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      41,
+      43
+    ],
+    "occurrences": 3,
+    "firstFrame": 2056
+  },
+  {
+    "id": 4,
+    "filename": "metasprite_004.png",
+    "width": 16,
+    "height": 16,
+    "spriteCount": 2,
+    "tiles": [
+      197,
+      199
+    ],
+    "occurrences": 3,
+    "firstFrame": 2056
+  }
+]
